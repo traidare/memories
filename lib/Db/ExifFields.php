@@ -46,6 +46,13 @@ final class ExifFields
         'Aperture' => true,
         'ImageUniqueID' => true,
 
+        // Tags
+        'TagsList' => true,
+        'Keywords' => true,
+        'Subject' => true,
+        'HierarchicalSubject' => true,
+        
+
         // GPS info
         'GPSLatitude' => true,
         'GPSLongitude' => true,
