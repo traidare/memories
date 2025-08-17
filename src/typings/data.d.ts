@@ -180,6 +180,8 @@ declare module '@typings' {
 
     ExifVersion?: string;
     ColorSpace?: number;
+    Rating?: number;
+
     TagsList?: string[];
     Keywords?: string[];
     Subject?: string[];
