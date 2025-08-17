@@ -9,6 +9,7 @@ use OCP\Files\File;
 use OCP\Lock\ILockingProvider;
 
 const DELETE_TABLES = ['memories', 'memories_livephoto', 'memories_places', 'memories_failures'];
+const DELETE_ALL = ['memories_embedded_tags'];
 const TRUNCATE_TABLES = ['memories_mapclusters'];
 
 final class TimelineWrite
@@ -18,6 +19,7 @@ final class TimelineWrite
     use TimelineWriteMap;
     use TimelineWriteOrphans;
     use TimelineWritePlaces;
+    use TimelineWriteEmbeddedTags;
 
     /**
      * Process a file to insert Exif data into the database.
@@ -188,6 +190,9 @@ final class TimelineWrite
         // Clear failures if successful
         if ($updated) {
             $this->clearFailures($file);
+
+            // Process embedded tags
+            $this->processEmbeddedTags($file, $exif);
         }
 
         return $updated;
@@ -250,7 +255,7 @@ final class TimelineWrite
      */
     public function clear(): void
     {
-        foreach (array_merge(DELETE_TABLES, TRUNCATE_TABLES) as $table) {
+        foreach (array_merge(DELETE_TABLES, DELETE_ALL, TRUNCATE_TABLES) as $table) {
             $this->connection->truncateTable($table, false);
         }
     }

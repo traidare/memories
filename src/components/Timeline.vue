@@ -14,7 +14,7 @@
     <TopMatter ref="topmatter" />
 
     <!-- No content found and nothing is loading -->
-    <EmptyContent v-if="showEmpty" />
+    <EmptyContent v-if="showEmpty" @reset-filters="resetFilters" :has-filters="hasFilters" />
 
     <!-- Top overlay showing date -->
     <TimelineTopOverlay
@@ -135,7 +135,7 @@ import * as nativex from '@native';
 import { API, DaysFilterType } from '@services/API';
 import * as lens from '@services/lens';
 
-import type { IDay, IHeadRow, IPhoto, IPhotoRow, IRow } from '@typings';
+import type { IDay, IFilters, IHeadRow, IPhoto, IPhotoRow, IRow } from '@typings';
 
 const SCROLL_LOAD_DELAY = 100; // Delay in loading data when scrolling
 const DESKTOP_ROW_HEIGHT = 200; // Height of row on desktop
@@ -179,6 +179,13 @@ export default defineComponent({
     heads: new Map<number, IHeadRow>(),
     /** Current list (days response) was loaded from cache */
     daysIsCache: false,
+
+    /** Current filters */
+    filters: {
+      minRating: 0,
+      tags: [],
+      embeddedTags: [],
+    } as IFilters,
 
     /** Size of outer container [w, h] */
     containerSize: [0, 0] as [number, number],
@@ -248,6 +255,7 @@ export default defineComponent({
     utils.bus.on('memories:timeline:deleted', this.deleteFromViewWithAnimation);
     utils.bus.on('memories:timeline:soft-refresh', this.softRefresh);
     utils.bus.on('memories:timeline:hard-refresh', this.refresh);
+    utils.bus.on('memories:filters:changed', this.onFiltersChanged);
   },
 
   beforeUnmount() {
@@ -258,6 +266,7 @@ export default defineComponent({
     utils.bus.off('memories:timeline:deleted', this.deleteFromViewWithAnimation);
     utils.bus.off('memories:timeline:soft-refresh', this.softRefresh);
     utils.bus.off('memories:timeline:hard-refresh', this.refresh);
+    utils.bus.off('memories:filters:changed', this.onFiltersChanged);
     this.resetState();
     this.state = 0;
   },
@@ -279,6 +288,11 @@ export default defineComponent({
     /** Nothing to show here */
     empty(): boolean {
       return !this.list.length && !this.dtmContent;
+    },
+
+    /** Whether any filters are applied */
+    hasFilters(): boolean {
+      return this.filters.minRating > 0 || this.filters.tags.length > 0;
     },
 
     /** Show the empty content box and hide the scrollbar */
@@ -624,6 +638,21 @@ export default defineComponent({
     getQuery() {
       const query: { [key in DaysFilterType]?: string } = {};
       const set = (filter: DaysFilterType, value: string = '1') => (query[filter] = value);
+
+      // Rating
+      if (this.filters.minRating > 0) {
+        set(DaysFilterType.RATING, this.filters.minRating.toString());
+      }
+
+      // Tags
+      if (this.filters.tags.length > 0) {
+        set(DaysFilterType.TAG, this.filters.tags.join(','));
+      }
+
+      // Embedded Tags
+      if (this.filters.embeddedTags.length > 0) {
+        set(DaysFilterType.EMBEDDED_TAGS, this.filters.embeddedTags.map((tag) => encodeURIComponent(tag)).join(','));
+      }
 
       // Favorites
       if (this.routeIsFavorites) {
@@ -1535,6 +1564,20 @@ export default defineComponent({
       } finally {
         this.updateLoading(-1);
       }
+    },
+
+    onFiltersChanged(filters: IFilters) {
+      this.filters = filters;
+      this.refresh();
+    },
+
+    resetFilters() {
+      this.filters = {
+        minRating: 0,
+        tags: [],
+        embeddedTags: [],
+      };
+      this.refresh();
     },
   },
 });
