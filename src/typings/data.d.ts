@@ -201,4 +201,9 @@ declare module '@typings' {
     expiration: number | null;
     editable: number;
   };
+
+  export type IFilters = {
+    minRating: number;
+    tags: string[];
+  }
 }
