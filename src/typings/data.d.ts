@@ -180,6 +180,10 @@ declare module '@typings' {
 
     ExifVersion?: string;
     ColorSpace?: number;
+    TagsList?: string[];
+    Keywords?: string[];
+    Subject?: string[];
+    HierarchicalSubject?: string[];
 
     GPSAltitude?: number;
     GPSLatitude?: number;
