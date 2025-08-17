@@ -61,8 +61,8 @@
 <script lang="ts">
 import type { IFilters } from '@typings';
 
-import NcButton from '@nextcloud/vue/dist/Components/NcButton.js';
-import NcSelectTags from '@nextcloud/vue/dist/Components/NcSelectTags.js';
+import NcButton from '@nextcloud/vue/components/NcButton';
+import NcSelectTags from '@nextcloud/vue/components/NcSelectTags';
 import CloseIcon from 'vue-material-design-icons/Close.vue';
 import { translate as t } from '@services/l10n';
 import * as utils from '@services/utils';
@@ -217,4 +217,4 @@ export default defineComponent({
   padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
-</style> 
+</style>
