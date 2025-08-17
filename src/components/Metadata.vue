@@ -61,6 +61,40 @@
       </div>
     </div>
 
+    <div v-if="embeddedTags.length > 0" class="top-field top-field--embedded-tags">
+      <div class="icon">
+        <TagIcon :size="24" />
+      </div>
+
+      <div class="text">
+        <div class="title">{{ t('memories', 'Tags') }} ({{ embeddedTags.length }})</div>
+        <div class="tags-container">
+          <template v-for="(tag, idx) in embeddedTags">
+            <NcChip v-if="tag.length === 1" :key="`tag-${idx}`" :text="tag[0]" no-close />
+            <div v-else-if="tag.length > 1" :key="`taglist-${idx}`" style="display: inline-block; margin: 2px;">
+              <NcPopover no-focus-trap>
+                <template #trigger>
+                  <NcButton>{{ tag[tag.length - 1] }}</NcButton>
+                </template>
+                <template #default>
+                  <div class="tag-path">{{ tag.join(' → ') }}</div>
+                </template>
+              </NcPopover>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div class="edit">
+        <NcActions :inline="1">
+          <NcActionButton :aria-label="t('memories', 'Edit')" @click="editTags()">
+            {{ t('memories', 'Edit') }}
+            <template #icon> <EditIcon :size="20" /> </template>
+          </NcActionButton>
+        </NcActions>
+      </div>
+    </div>
+
     <div v-if="lat && lon" class="map">
       <iframe class="fill-block" :src="mapUrl"></iframe>
     </div>
@@ -79,6 +113,10 @@ import type { Component, PropType } from 'vue';
 
 import NcActions from '@nextcloud/vue/components/NcActions';
 import NcActionButton from '@nextcloud/vue/components/NcActionButton';
+import NcChip from '@nextcloud/vue/components/NcChip';
+import NcPopover from '@nextcloud/vue/components/NcPopover';
+import NcButton from '@nextcloud/vue/components/NcButton';
+
 const NcAvatar = defineAsyncComponent(() => import('@nextcloud/vue/components/NcAvatar'));
 
 import axios from '@nextcloud/axios';
@@ -119,10 +157,14 @@ export default defineComponent({
     NcActions,
     NcActionButton,
     NcAvatar,
+    NcChip,
+    NcPopover,
+    NcButton,
     AlbumsList,
     Cluster,
     EditIcon,
     XLoadingIcon,
+    TagIcon,
   },
 
   mixins: [UserConfig],
@@ -388,6 +430,11 @@ export default defineComponent({
       return Number(this.exif.GPSLongitude);
     },
 
+    embeddedTags(): string[][]  {
+      const ensureArray = (v: string | string[] | undefined | null) => v ? (Array.isArray(v) ? v : [v]) : undefined;
+      return ensureArray(this.exif.TagsList)?.map((tag) => tag.split('/')) || ensureArray(this.exif.HierarchicalSubject)?.map((tag) => tag.split('|')) || ensureArray(this.exif.Keywords)?.map((tag) => [tag]) || ensureArray(this.exif.Subject)?.map((tag) => [tag]) || [];
+    },
+
     tagNames(): string[] {
       return Object.values(this.baseInfo?.tags || {}).map((tag: string) => this.t('recognize', tag));
     },
@@ -645,5 +692,22 @@ export default defineComponent({
   aspect-ratio: 16 / 10;
   min-height: 200px;
   max-height: 250px;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+
+  :deep .chip {
+    margin: 0;
+  }
+}
+
+.tag-path {
+  padding: 8px 12px;
+  font-size: 0.9em;
+  white-space: nowrap;
 }
 </style>
