@@ -131,6 +131,9 @@ final class OtherController extends ApiController
                 'video_loop' => 'true' === $this->systemConfig->getUserConfigValue('videoLoop', 'false'),
                 'sidebar_filepath' => 'true' === $this->systemConfig->getUserConfigValue('sidebarFilepath', 'false'),
                 'slideshow_duration' => (int) $this->systemConfig->getUserConfigValue('slideshowDuration', '5'),
+                'metadata_in_slideshow' => 'true' === $this->systemConfig->getUserConfigValue('metadataInSlideshow', 'false'),
+                'metadata_in_gallery' => 'true' === $this->systemConfig->getUserConfigValue('metadataInGallery', 'false'),
+                'enable_exif_photo_rating_in_gallery' => 'true' === $this->systemConfig->getUserConfigValue('enableExifPhotoRatingInGallery', 'false'),
 
                 // on this day settings
                 'onthisday_day_range' => (int) $this->systemConfig->getUserConfigValue('onthisdayDayRange', '3'),

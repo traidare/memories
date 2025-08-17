@@ -84,6 +84,8 @@ final class DaysController extends ApiController
                 $this->isHidden(),
                 $this->isMonthView(),
                 $this->isReverse(),
+                $this->getMinRating(),
+                $this->getEmbeddedTags(),
                 $this->getTransformations(),
             );
 
@@ -132,6 +134,18 @@ final class DaysController extends ApiController
         if ($bounds = $this->request->getParam('mapbounds')) {
             $transforms[] = function (IQueryBuilder &$query, bool $aggregate) use ($bounds): void {
                 $this->tq->transformMapBoundsFilter($query, $aggregate, (string) $bounds);
+            };
+        }
+
+        if ($this->tq->shouldFilterExifBySQL() && ($minRating = $this->getMinRating())) {
+            $transforms[] = function (IQueryBuilder &$query, bool $aggregate) use ($minRating): void {
+                $this->tq->transformMinRatingFilter($query, $aggregate, $minRating);
+            };
+        }
+
+        if ($this->tq->shouldFilterExifBySQL() && ($embeddedTags = $this->getEmbeddedTags())) {
+            $transforms[] = function (IQueryBuilder &$query, bool $aggregate) use ($embeddedTags): void {
+                $this->tq->transformEmbeddedTagsFilter($query, $aggregate, $embeddedTags);
             };
         }
 
@@ -191,6 +205,8 @@ final class DaysController extends ApiController
             $this->isHidden(),
             $this->isMonthView(),
             $this->isReverse(),
+            $this->getMinRating(),
+            $this->getEmbeddedTags(),
             $this->getTransformations(),
         );
 
@@ -199,6 +215,15 @@ final class DaysController extends ApiController
             $dayId = (int) $photo['dayid'];
             if (!($drefMap[$dayId] ?? null)) {
                 continue;
+            }
+
+            // Only include photos that are in the fileIds array (if it exists)
+            $dayData = $drefMap[$dayId];
+            if (isset($dayData['fileIds']) && !empty($dayData['fileIds'])) {
+                $photoFileId = (int) $photo['fileid'];
+                if (!in_array($photoFileId, $dayData['fileIds'], true)) {
+                    continue;
+                }
             }
 
             if (!($drefMap[$dayId]['detail'] ?? null)) {
@@ -237,5 +262,21 @@ final class DaysController extends ApiController
     private function isReverse(): bool
     {
         return null !== $this->request->getParam('reverse');
+    }
+
+    private function getMinRating(): int
+    {
+        return (int) $this->request->getParam('minRating') ?? 0;
+    }
+
+    private function getEmbeddedTags(): array
+    {
+        $embeddedTagsParam = $this->request->getParam('embeddedTags');
+        if ($embeddedTagsParam) {
+            // Decode URI-encoded string before splitting
+            $decoded = urldecode($embeddedTagsParam);
+            return explode(',', $decoded);
+        }
+        return [];
     }
 }

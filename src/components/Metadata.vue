@@ -60,6 +60,53 @@
         </NcActions>
       </div>
     </div>
+    <div v-if="embeddedTags.length > 0 || canEdit" class="top-field top-field--embedded-tags">
+      <div class="icon">
+        <TagIcon :size="24" />
+      </div>
+
+      <div class="text">
+        <div class="title">{{ t('memories', 'Tags') }} ({{ embeddedTags.length }})</div>
+        <div class="tags-container" v-if="embeddedTags.length > 0">
+          <template v-for="(tag, idx) in embeddedTags">
+            <NcChip v-if="tag.length === 1" :key="`tag-${idx}`" :text="tag[0]" no-close />
+            <div v-else-if="tag.length > 1" :key="`taglist-${idx}`" style="display: inline-block; margin: 2px;">
+              <NcPopover no-focus-trap>
+                <template #trigger>
+                  <NcChip
+                    :text="tag[tag.length - 1]"
+                    no-close
+                  >
+                    <template #icon>
+                      <TreeIcon :size="16" />
+                    </template>
+                  </NcChip>
+                </template>
+                <template #default>
+                  <div class="tag-path">{{ tag.join(' → ') }}</div>
+                </template>
+              </NcPopover>
+            </div>
+          </template>
+        </div>
+        <div v-else class="subtitle">
+          {{ t('memories', 'Click edit to add tags') }}
+        </div>
+      </div>
+
+      <div class="edit" v-if="canEdit">
+        <NcActions :inline="1">
+          <NcActionButton :aria-label="t('memories', 'Edit')" @click="editEmbeddedTags()">
+            {{ t('memories', 'Edit') }}
+            <template #icon> <EditIcon :size="20" /> </template>
+          </NcActionButton>
+        </NcActions>
+      </div>
+    </div>
+
+    <div class="top-field top-field--rating">
+      <RatingStars :rating="rating ?? 0" :readonly="!canEdit" @update:rating="updateRating" />
+    </div>
 
     <div v-if="lat && lon" class="map">
       <MapStandalone :center="[lat, lon]" :pins="[[lat, lon]]" />
@@ -79,6 +126,10 @@ import type { Component, PropType } from 'vue';
 
 import NcActions from '@nextcloud/vue/components/NcActions';
 import NcActionButton from '@nextcloud/vue/components/NcActionButton';
+import NcChip from '@nextcloud/vue/components/NcChip';
+import NcPopover from '@nextcloud/vue/components/NcPopover';
+import NcButton from '@nextcloud/vue/components/NcButton';
+
 const NcAvatar = defineAsyncComponent(() => import('@nextcloud/vue/components/NcAvatar'));
 
 import axios from '@nextcloud/axios';
@@ -90,6 +141,7 @@ import Cluster from '@components/frame/Cluster.vue';
 import AlbumsList from '@components/modal/AlbumsList.vue';
 import XLoadingIcon from '@components/XLoadingIcon.vue';
 import MapStandalone from '@components/MapStandalone.vue';
+import RatingStars from '@components/RatingStars.vue';
 
 import EditIcon from 'vue-material-design-icons/Pencil.vue';
 import CalendarIcon from 'vue-material-design-icons/Calendar.vue';
@@ -97,12 +149,14 @@ import CameraIrisIcon from 'vue-material-design-icons/CameraIris.vue';
 import ImageIcon from 'vue-material-design-icons/Image.vue';
 import LocationIcon from 'vue-material-design-icons/MapMarker.vue';
 import TagIcon from 'vue-material-design-icons/Tag.vue';
+import TreeIcon from 'vue-material-design-icons/FileTree.vue';
 
 import * as utils from '@services/utils';
 import * as dav from '@services/dav';
 
 import type { IAlbum, IFace, IImageInfo, IPhoto, IExif } from '@typings';
 import type { IFolder, INode, IView } from '@nextcloud/files';
+import { showError } from '@nextcloud/dialogs';
 
 interface TopField {
   id: string;
@@ -119,11 +173,17 @@ export default defineComponent({
     NcActions,
     NcActionButton,
     NcAvatar,
+    NcChip,
+    NcPopover,
+    NcButton,
     AlbumsList,
     Cluster,
     EditIcon,
     XLoadingIcon,
     MapStandalone,
+    TagIcon,
+    TreeIcon,
+    RatingStars,
   },
 
   mixins: [UserConfig],
@@ -160,6 +220,7 @@ export default defineComponent({
     filename: '',
     exif: {} as IExif,
     baseInfo: {} as IImageInfo,
+    lock: false,
     error: false,
 
     loading: 0,
@@ -239,7 +300,7 @@ export default defineComponent({
     },
 
     canEdit(): boolean {
-      return this.baseInfo?.permissions?.includes('U');
+      return this.baseInfo?.permissions?.includes('U') && !this.lock;
     },
 
     /** Title EXIF value */
@@ -393,6 +454,15 @@ export default defineComponent({
       return Number(this.exif.GPSLongitude);
     },
 
+    rating(): number | null {
+      const rating = utils.getRatingFromExif(this.exif);
+      return rating > 0 ? rating : null;
+    },
+
+    embeddedTags(): string[][]  {
+      return utils.getTagsFromExif(this.exif);
+    },
+
     tagNames(): string[] {
       return Object.values(this.baseInfo?.tags || {}).map((tag: string) => this.t('recognize', tag));
     },
@@ -512,12 +582,41 @@ export default defineComponent({
       _m.modals.editMetadata([_m.viewer.currentPhoto!], [2]);
     },
 
+    editEmbeddedTags() {
+      _m.modals.editMetadata([_m.viewer.currentPhoto!], [6]);
+    },
+
     editEXIF() {
       _m.modals.editMetadata([_m.viewer.currentPhoto!], [3]);
     },
 
     editGeo() {
       _m.modals.editMetadata([_m.viewer.currentPhoto!], [4]);
+    },
+
+    async updateExif(fileid: number, fields: Partial<IExif>) {
+      this.lock = true;
+      try {
+        const raw = this.exif ?? {};
+        //optimistically update the exif
+        this.exif = { ...raw, ...fields };
+        await axios.patch<IImageInfo>(API.IMAGE_SETEXIF(fileid), { raw: this.exif });
+      }
+      catch (e) {
+        console.error('Failed to save metadata for', fileid, e);
+        if (e.response?.data?.message) {
+          showError(e.response.data.message);
+        } else {
+          showError(e);
+        }
+      } finally {
+        this.lock = false;
+        utils.bus.emit('files:file:updated', { fileid });
+      }
+    },
+
+    updateRating(rating: number) {
+      this.updateExif(this.fileid!, { Rating: rating === this.exif.Rating ? undefined : rating });
     },
 
     handleFileUpdated({ fileid }: utils.BusEvent['files:file:updated']) {
@@ -660,5 +759,22 @@ a {
   max-height: 250px;
   border-radius: 16px;
   overflow: hidden;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+
+  :deep .chip {
+    margin: 0;
+  }
+}
+
+.tag-path {
+  padding: 8px 12px;
+  font-size: 0.9em;
+  white-space: nowrap;
 }
 </style>

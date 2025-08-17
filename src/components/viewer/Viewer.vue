@@ -74,14 +74,22 @@
       </div>
 
       <div class="bottom-bar" v-if="photoswipe">
-        <div class="exif title" v-if="currentPhoto?.imageInfo?.exif?.Title">
-          {{ currentPhoto.imageInfo.exif.Title }}
+        <div class="bottom-bar-left">
+          <div class="exif title" v-if="currentPhoto?.imageInfo?.exif?.Title">
+            {{ currentPhoto.imageInfo.exif.Title }}
+          </div>
+          <div class="exif description" v-if="currentPhoto?.imageInfo?.exif?.Description">
+            {{ currentPhoto.imageInfo.exif.Description }}
+          </div>
+          <div class="exif date" v-if="currentDateTaken">
+            {{ currentDateTaken }}<template v-if="currentAddressShort"> • {{ currentAddressShort }}</template>
+          </div>
         </div>
-        <div class="exif description" v-if="currentPhoto?.imageInfo?.exif?.Description">
-          {{ currentPhoto.imageInfo.exif.Description }}
-        </div>
-        <div class="exif date" v-if="currentDateTaken">
-          {{ currentDateTaken }}<template v-if="currentAddressShort"> • {{ currentAddressShort }}</template>
+        <div
+          class="bottom-bar-right"
+          v-if="config.metadata_in_slideshow && (currentRating > 0 || currentTags.length > 0)"
+        >
+          <RatingTags :rating="currentRating" :tags="currentTags" :slideshow="true" :compact="true" />
         </div>
       </div>
 
@@ -129,6 +137,7 @@ import ViewerBottomSheet from './ViewerBottomSheet.vue';
 import ViewerSheetGestures from './ViewerSheetGestures.vue';
 import MobileBottomBar from '@components/MobileBottomBar.vue';
 import XLoadingIcon from '@components/XLoadingIcon.vue';
+import RatingTags from '../RatingTags.vue';
 import PhotoSwipe, { type PhotoSwipeOptions } from 'photoswipe';
 import 'photoswipe/style.css';
 import PsImage from './PsImage';
@@ -186,6 +195,7 @@ export default defineComponent({
     ViewerBottomSheet,
     ViewerSheetGestures,
     XLoadingIcon,
+    RatingTags,
   },
 
   mixins: [UserConfig],
@@ -551,6 +561,18 @@ export default defineComponent({
         extension: (raw.basename?.split('.').pop() ?? '?').toUpperCase(),
         fileid: raw.fileid,
       }));
+    },
+
+    /** Get current photo rating */
+    currentRating(): number {
+      const exif = this.currentPhoto?.imageInfo?.exif;
+      return utils.getRatingFromExif(exif);
+    },
+
+    /** Get current photo embedded tags */
+    currentTags(): string[][] {
+      const exif = this.currentPhoto?.imageInfo?.exif;
+      return utils.getTagsFromExif(exif);
     },
   },
 
@@ -1587,12 +1609,30 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
 
   transition: opacity 0.2s ease-in-out;
   opacity: 0;
-  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video) &:has(> .exif),
-  .memories-viewer.force-metadata.fully-opened:not(.is-video) &:has(> .exif) {
+  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video) &:has(.exif, .bottom-bar-right),
+  .memories-viewer.force-metadata.fully-opened:not(.is-video) &:has(.exif, .bottom-bar-right) {
     opacity: 1;
+  }
+
+  .bottom-bar-left {
+    flex: 1;
+    min-width: 0; // Allow flex shrinking
+  }
+
+  .bottom-bar-right {
+    flex-shrink: 0;
+    margin-left: 16px;
+    max-width: 50%;
+
+    @media (max-width: 768px) {
+      display: none;
+    }
   }
 
   .exif {

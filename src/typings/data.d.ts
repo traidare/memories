@@ -79,6 +79,9 @@ declare module '@typings' {
     /** Reference to exif object */
     imageInfo?: IImageInfo | null;
 
+    /** Reference to exif object */
+    exif?: IExif;
+
     /** Face detection ID */
     faceid?: number;
     /** Face dimensions */
@@ -181,6 +184,12 @@ declare module '@typings' {
 
     ExifVersion?: string;
     ColorSpace?: number;
+    Rating?: number;
+
+    TagsList?: string[];
+    Keywords?: string[];
+    Subject?: string[];
+    HierarchicalSubject?: string[];
 
     GPSAltitude?: number;
     GPSLatitude?: number;
@@ -196,4 +205,10 @@ declare module '@typings' {
     expiration: number | null;
     editable: number;
   };
+
+  export type IFilters = {
+    minRating: number;
+    tags: string[];
+    embeddedTags: string[];
+  }
 }
