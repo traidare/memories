@@ -182,6 +182,7 @@ export default defineComponent({
     filters: {
       minRating: 0,
       tags: [],
+      embeddedTags: [],
     } as IFilters,
 
     /** Size of outer container [w, h] */
@@ -641,6 +642,11 @@ export default defineComponent({
       // Tags
       if (this.filters.tags.length > 0) {
         set(DaysFilterType.TAG, this.filters.tags.join(','));
+      }
+
+      // Embedded Tags
+      if (this.filters.embeddedTags.length > 0) {
+        set(DaysFilterType.EMBEDDED_TAGS, this.filters.embeddedTags.map((tag) => encodeURIComponent(tag)).join(','));
       }
 
       // Favorites
@@ -1530,6 +1536,7 @@ export default defineComponent({
       this.filters = {
         minRating: 0,
         tags: [],
+        embeddedTags: [],
       };
       this.refresh();
     },
