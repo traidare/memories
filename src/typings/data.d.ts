@@ -205,5 +205,6 @@ declare module '@typings' {
   export type IFilters = {
     minRating: number;
     tags: string[];
+    embeddedTags: string[];
   }
 }
