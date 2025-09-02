@@ -33,7 +33,7 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import RatingStars from './RatingStars.vue';
-import NcChip from '@nextcloud/vue/dist/Components/NcChip.js';
+import NcChip from '@nextcloud/vue/components/NcChip';
 
 export default defineComponent({
   name: 'RatingTags',
