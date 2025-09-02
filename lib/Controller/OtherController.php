@@ -110,6 +110,9 @@ final class OtherController extends GenericApiController
                 'livephoto_loop' => 'true' === $getAppConfig('livephotoLoop', 'false'),
                 'video_loop' => 'true' === $getAppConfig('videoLoop', 'false'),
                 'sidebar_filepath' => 'true' === $getAppConfig('sidebarFilepath', 'false'),
+                'metadata_in_slideshow' => 'true' === $getAppConfig('metadataInSlideshow', 'false'),
+                'metadata_in_gallery' => 'true' === $getAppConfig('metadataInGallery', 'false'),
+                'enable_exif_photo_rating_in_gallery' => 'true' === $getAppConfig('enableExifPhotoRatingInGallery', 'false'),
 
                 // folder settings
                 'folders_path' => $getAppConfig('foldersPath', '/'),
