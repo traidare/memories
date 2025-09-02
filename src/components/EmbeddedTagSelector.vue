@@ -16,7 +16,7 @@
 
 <script>
 import { defineComponent } from 'vue';
-import NcSelect from '@nextcloud/vue/dist/Components/NcSelect.js';
+import NcSelect from '@nextcloud/vue/components/NcSelect';
 import axios from '@nextcloud/axios';
 import { API } from '@services/API';
 
@@ -120,4 +120,4 @@ export default defineComponent({
     max-height: 200px;
   }
 }
-</style> 
+</style>
