@@ -164,6 +164,8 @@ class StaticConfig {
       // on this day settings
       onthisday_day_range: 3,
       onthisday_photos_per_year: 10,
+      metadata_in_gallery: false,
+      enable_exif_photo_rating_in_gallery: false,
 
       // folder settings
       folders_path: String(),

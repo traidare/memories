@@ -93,6 +93,21 @@
           step="1"
           @update:model-value="updateSlideshowDuration"
         />
+        <NcCheckboxRadioSwitch
+          v-model="config.metadata_in_gallery"
+          @update:model-value="updateMetadataInGallery"
+          type="switch"
+        >
+          {{ t('memories', 'Show metadata in gallery') }}
+        </NcCheckboxRadioSwitch>
+
+        <NcCheckboxRadioSwitch
+          v-model="config.enable_exif_photo_rating_in_gallery"
+          @update:model-value="updateEnableExifPhotoRatingInGallery"
+          type="switch"
+        >
+          {{ t('memories', 'Enable photo rating in gallery') }}
+        </NcCheckboxRadioSwitch>
 
         <div class="radio-group">
           <div class="title">{{ t('memories', 'High resolution image loading behavior') }}</div>
@@ -441,6 +456,14 @@ export default defineComponent({
 
     async updateOnThisDayPhotos() {
       await this.updateSetting('onthisday_photos_per_year', 'onthisdayPhotosPerYear');
+    },
+
+    async updateMetadataInGallery() {
+      await this.updateSetting('metadata_in_gallery', 'metadataInGallery');
+    },
+
+    async updateEnableExifPhotoRatingInGallery() {
+      await this.updateSetting('enable_exif_photo_rating_in_gallery', 'enableExifPhotoRatingInGallery');
     },
 
     // Folders settings
