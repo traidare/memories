@@ -133,6 +133,9 @@ final class OtherController extends GenericApiController
                 // on this day settings
                 'onthisday_day_range' => (int) $getAppConfig('onthisdayDayRange', '3'),
                 'onthisday_photos_per_year' => (int) $getAppConfig('onthisdayPhotosPerYear', '10'),
+                'metadata_in_slideshow' => 'true' === $getAppConfig('metadataInSlideshow', 'false'),
+                'metadata_in_gallery' => 'true' === $getAppConfig('metadataInGallery', 'false'),
+                'enable_exif_photo_rating_in_gallery' => 'true' === $getAppConfig('enableExifPhotoRatingInGallery', 'false'),
 
                 // folder settings
                 'folders_path' => $getAppConfig('foldersPath', '/'),
