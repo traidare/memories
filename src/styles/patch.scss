@@ -3,6 +3,12 @@
   max-height: calc(90vh - 86px) !important; // was 50vh
 }
 
+// NcSelect dropdown appended to body needs higher z-index
+// than NcPopover (z-index: 100000) to render above it
+.vs__dropdown-menu--floating {
+  z-index: 100001 !important;
+}
+
 // Make sure empty content is full width
 [role='note'].empty-content {
   width: 100%;
