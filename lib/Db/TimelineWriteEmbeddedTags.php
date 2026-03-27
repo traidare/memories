@@ -17,10 +17,16 @@ trait TimelineWriteEmbeddedTags
      * @param File $file File node to process
      * @param array $exif EXIF data extracted from the file
      */
-    public function processEmbeddedTags(File $file, array $exif): void
+    public function processEmbeddedTags(File $file, array $exif, ?string $userId = null): void
     {
-        // Get the user ID from the file owner
-        $userId = $file->getOwner()->getUID();
+        // Use provided user ID (from indexer context), or fall back to file owner
+        if (null === $userId) {
+            $owner = $file->getOwner();
+            if (null === $owner) {
+                return;
+            }
+            $userId = $owner->getUID();
+        }
         
         // Extract embedded tags from EXIF data
         $embeddedTags = Exif::extractEmbeddedTags($exif);
@@ -83,6 +89,7 @@ trait TimelineWriteEmbeddedTags
                         'parent_tag_id' => $query->createNamedParameter($parentTagId, $parentTagId === null ? IQueryBuilder::PARAM_NULL : IQueryBuilder::PARAM_INT),
                         'path' => $query->createNamedParameter($fullPath, IQueryBuilder::PARAM_STR),
                         'level' => $query->createNamedParameter($level, IQueryBuilder::PARAM_INT),
+                        'created_at' => $query->createNamedParameter(new \DateTime(), IQueryBuilder::PARAM_DATETIME_MUTABLE),
                     ])
                     ->executeStatement();
                 
