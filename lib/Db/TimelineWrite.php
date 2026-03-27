@@ -35,9 +35,10 @@ final class TimelineWrite
     /**
      * Process a file to insert Exif data into the database.
      *
-     * @param File $file  File node to process
-     * @param bool $lock  Lock the file before processing
-     * @param bool $force Update the record even if the file has not changed
+     * @param File        $file   File node to process
+     * @param bool        $lock   Lock the file before processing
+     * @param bool        $force  Update the record even if the file has not changed
+     * @param string|null $userId User to store embedded tags for (null = file owner)
      *
      * @return bool True if the file was processed
      *
@@ -48,6 +49,7 @@ final class TimelineWrite
         File $file,
         bool $lock = true,
         bool $force = false,
+        ?string $userId = null,
     ): bool {
         // Check if we want to process this file
         // https://github.com/pulsejet/memories/issues/933 (zero-byte files)
@@ -65,7 +67,7 @@ final class TimelineWrite
             $this->lockingProvider->acquireLock($lockKey, $lockType);
 
             try {
-                return $this->processFile($file, false, $force);
+                return $this->processFile($file, false, $force, $userId);
             } finally {
                 $this->lockingProvider->releaseLock($lockKey, $lockType);
             }
@@ -85,6 +87,22 @@ final class TimelineWrite
         // - the file has not changed
         // - the record is not an orphan
         if (!$force && $prevRow && ((int) $prevRow['mtime'] === $mtime) && (!(bool) $prevRow['orphan'])) {
+            // Even though the file hasn't changed, we still need to ensure
+            // embedded tags exist for the current user. This is critical for
+            // group folder files that are visible to multiple users — the file
+            // is only fully indexed once, but each user needs their own tag entries.
+            if ($userId && !empty($prevRow['exif'])) {
+                try {
+                    $exif = json_decode($prevRow['exif'], true) ?? [];
+                    $this->processEmbeddedTags($file, $exif, $userId);
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
+                        'path' => $file->getPath(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             return false;
         }
 
@@ -195,9 +213,17 @@ final class TimelineWrite
         // Clear failures if successful
         if ($updated) {
             $this->clearFailures($file);
-            
-            // Process embedded tags
-            $this->processEmbeddedTags($file, $exif);
+        }
+
+        // Process embedded tags even if the row was not updated
+        // (e.g. --force re-index with unchanged data still needs to populate tags)
+        try {
+            $this->processEmbeddedTags($file, $exif, $userId);
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
+                'path' => $file->getPath(),
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return $updated;
