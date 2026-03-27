@@ -115,9 +115,9 @@ class Index
             }
 
             if ($node instanceof Folder) {
-                $this->indexFolder($node);
+                $this->indexFolder($node, $uid);
             } elseif ($node instanceof File) {
-                $this->indexFile($node);
+                $this->indexFile($node, $uid);
             } else {
                 throw new \Exception('Not a file or folder');
             }
@@ -128,8 +128,9 @@ class Index
      * Index all files in a folder.
      *
      * @param Folder $folder folder to index
+     * @param string $userId user being indexed (for embedded tags ownership)
      */
-    public function indexFolder(Folder $folder): void
+    public function indexFolder(Folder $folder, ?string $userId = null): void
     {
         $path = $folder->getPath();
         $this->log("Indexing folder {$path}", true);
@@ -205,7 +206,52 @@ class Index
             // Index files
             foreach ($fileIds as $fileId) {
                 $this->ensureContinueOk();
-                $this->indexFile($chunk[$fileId]);
+                $this->indexFile($chunk[$fileId], $userId);
+            }
+
+            // Process embedded tags for already-indexed files (for the current user).
+            // The memories table is file-scoped (one row per fileid), so once User A
+            // indexes a file, the SQL filter above skips it for User B. But
+            // memories_embedded_tags is user-scoped, so each user needs their own entries.
+            if ($userId) {
+                $alreadyIndexed = array_diff(array_keys($chunk), $fileIds);
+
+                if (!empty($alreadyIndexed)) {
+                    $exifQuery = $this->db->getQueryBuilder();
+                    $exifQuery->select('fileid', 'exif')
+                        ->from('memories')
+                        ->where($exifQuery->expr()->in(
+                            'fileid',
+                            $exifQuery->createNamedParameter(
+                                array_values($alreadyIndexed),
+                                IQueryBuilder::PARAM_INT_ARRAY,
+                            ),
+                        ))
+                    ;
+                    $rows = $exifQuery->executeQuery()->fetchAll();
+
+                    foreach ($rows as $row) {
+                        $fileId = (int) $row['fileid'];
+                        if (empty($row['exif'])) {
+                            continue;
+                        }
+
+                        $exif = json_decode($row['exif'], true);
+                        if (empty($exif)) {
+                            continue;
+                        }
+
+                        if (!isset($chunk[$fileId])) {
+                            continue;
+                        }
+
+                        try {
+                            $this->tw->processEmbeddedTags($chunk[$fileId], $exif, $userId);
+                        } catch (\Exception $e) {
+                            $this->error("Failed to process embedded tags for file {$fileId}: {$e->getMessage()}");
+                        }
+                    }
+                }
             }
         }
 
@@ -215,7 +261,7 @@ class Index
             $this->ensureContinueOk();
 
             try {
-                $this->indexFolder($folder);
+                $this->indexFolder($folder, $userId);
             } catch (ProcessClosedException $e) {
                 throw $e;
             } catch (\Exception $e) {
@@ -226,14 +272,17 @@ class Index
 
     /**
      * Index a single file.
+     *
+     * @param File        $file   file to index
+     * @param null|string $userId user being indexed (for embedded tags ownership)
      */
-    public function indexFile(File $file): void
+    public function indexFile(File $file, ?string $userId = null): void
     {
         $path = $file->getPath();
 
         try {
             $this->log("Indexing file {$path}", true);
-            $this->tw->processFile($file);
+            $this->tw->processFile($file, userId: $userId);
         } catch (\OCP\Lock\LockedException $e) {
             $this->log("Skipping file {$path} due to lock", true);
         } catch (\Exception $e) {
