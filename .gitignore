@@ -31,3 +31,5 @@ bin-ext/
 
 .devcontainer/config/
 .devcontainer/data/
+
+/result*
