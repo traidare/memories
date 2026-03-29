@@ -15,6 +15,14 @@
           };
           default = config.packages.nextcloud-app-memories;
         };
+
+        # Run with `nix build .#checks.x86_64-linux.TEST_NAME -L`
+        checks = {
+          memories-embedded-tags = import ./nix/tests/memories-embedded-tags.nix {
+            inherit pkgs lib;
+            memoriesApp = config.packages.nextcloud-app-memories;
+          };
+        };
       };
     });
 
