@@ -51,6 +51,67 @@ final class IndexQuery
     }
 
     /**
+     * Stream indexed files under the given folders for per-user embedded tags.
+     *
+     * @param int[] $topFolderIds top folder fileids
+     *
+     * @return \Generator<int, array<int, array<string, mixed>>> batches of fileid and exif rows
+     */
+    public function getIndexedTagBatches(array $topFolderIds, int $batchSize = 200): \Generator
+    {
+        $mimes = $this->mime->getMimeList();
+        if ([] === $topFolderIds || [] === $mimes) {
+            return;
+        }
+
+        /** @var string[] $blocklist */
+        $blocklist = $this->systemConfig->get('memories.index.folder.blocklist');
+        $lastFileId = 0;
+
+        while (true) {
+            $query = $this->connection->getQueryBuilder();
+            $query->select('f.fileid', 'a.exif')
+                ->from('filecache', 'f')
+                ->innerJoin('f', 'memories', 'a', $query->expr()->eq('f.fileid', 'a.fileid'))
+                ->andWhere($query->expr()->gt('f.fileid', $query->createNamedParameter($lastFileId, IQueryBuilder::PARAM_INT)))
+                ->andWhere($query->expr()->eq('f.mtime', 'a.mtime'))
+                ->andWhere($query->expr()->eq('a.orphan', $query->expr()->literal(0)))
+                ->andWhere($query->expr()->gt('f.size', $query->expr()->literal(0)))
+                ->orderBy('f.fileid')
+                ->setMaxResults($batchSize)
+            ;
+
+            $mimeParam = $query->createNamedParameter($mimes, IQueryBuilder::PARAM_STR_ARRAY);
+            $mimeQuery = $this->connection->getQueryBuilder();
+            $mimeQuery->select('m.id')
+                ->from('mimetypes', 'm')
+                ->where($mimeQuery->expr()->in('m.mimetype', $mimeParam))
+            ;
+            $mimeQuery = SQL::materialize($mimeQuery, 'mm');
+            $query->andWhere($query->expr()->in('f.mimetype', SQL::subquery($query, $mimeQuery)));
+
+            $inFolders = $this->connection->getQueryBuilder();
+            $inFolders->select($inFolders->expr()->literal(1))
+                ->from('cte_folders', 'cte_f')
+                ->where($inFolders->expr()->eq('f.parent', 'cte_f.fileid'))
+            ;
+            $query->andWhere(SQL::exists($query, $inFolders));
+
+            CTEParams::setTopFolderIds($query, $topFolderIds);
+            CTEParams::setIncludeHidden($query, true);
+            CTEParams::setFolderNameBlocklist($query, $blocklist);
+
+            $batch = $this->tq->executeQueryWithCTEs($query)->fetchAll();
+            if ([] === $batch) {
+                return;
+            }
+
+            $lastFileId = (int) $batch[\count($batch) - 1]['fileid'];
+            yield $batch;
+        }
+    }
+
+    /**
      * Check if a file is indexed (or failed).
      *
      * @param int $fileId fileid

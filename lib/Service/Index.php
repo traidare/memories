@@ -119,7 +119,7 @@ final class Index
             if ($node instanceof Folder) {
                 $indexPaths[] = $path;
             } elseif ($node instanceof File) {
-                $this->indexFile($node);
+                $this->indexFile($node, userId: $uid);
             } else {
                 throw new \Exception('Not a file or folder');
             }
@@ -129,7 +129,7 @@ final class Index
         if (\count($indexPaths) > 0) {
             $root = new TimelineRoot();
             $this->fsManager->populateRoot($root, true, $user, $indexPaths);
-            $this->indexFolderIds($userFolder, $root->getIds());
+            $this->indexFolderIds($userFolder, $root->getIds(), $uid);
         }
     }
 
@@ -139,8 +139,31 @@ final class Index
      * @param Folder $folder Folder to materialize candidates in (scopes getById)
      * @param int[]  $topIds top folder fileids to crawl, mounts already expanded
      */
-    public function indexFolderIds(Folder $folder, array $topIds): void
+    public function indexFolderIds(Folder $folder, array $topIds, ?string $userId = null): void
     {
+        if (null !== $userId) {
+            foreach ($this->indexQuery->getIndexedTagBatches($topIds) as $batch) {
+                foreach ($batch as $row) {
+                    $this->ensureContinueOk();
+
+                    $fileId = (int) $row['fileid'];
+                    $exif = json_decode($row['exif'] ?? '', true);
+                    if (!\is_array($exif) || [] === $exif) {
+                        continue;
+                    }
+
+                    try {
+                        $file = $folder->getById($fileId)[0] ?? null;
+                        if ($file instanceof File) {
+                            $this->tw->processEmbeddedTags($file, $exif, $userId);
+                        }
+                    } catch (\Exception $e) {
+                        $this->error("Failed to process embedded tags for file {$fileId}: {$e->getMessage()}");
+                    }
+                }
+            }
+        }
+
         foreach ($this->indexQuery->getCandidateBatches($topIds) as $batch) {
             foreach ($batch as $fileId) {
                 $this->ensureContinueOk();
@@ -150,7 +173,7 @@ final class Index
                     if (!$node instanceof File) {
                         throw new \Exception('Not a file');
                     }
-                    $this->indexFile($node, failSkip: true);
+                    $this->indexFile($node, failSkip: true, userId: $userId);
                 } catch (\Exception $e) {
                     $this->error("Failed to index file {$fileId}: {$e->getMessage()}");
                 }
@@ -163,7 +186,7 @@ final class Index
      *
      * @param Folder $folder folder to index
      */
-    public function indexFolder(Folder $folder): void
+    public function indexFolder(Folder $folder, ?string $userId = null): void
     {
         if (!$this->indexQuery->isEligible($folder->getId())) {
             return;
@@ -171,13 +194,13 @@ final class Index
 
         $path = $folder->getPath();
         $this->log("Indexing folder {$path}", true);
-        $this->indexFolderIds($folder, [$folder->getId()]);
+        $this->indexFolderIds($folder, [$folder->getId()], $userId);
     }
 
     /**
      * Index a single file.
      */
-    public function indexFile(File $file, bool $failSkip = false): void
+    public function indexFile(File $file, bool $failSkip = false, ?string $userId = null): void
     {
         $path = $file->getPath();
 
@@ -203,6 +226,7 @@ final class Index
                 validate: function () use ($file): bool {
                     return !$this->indexQuery->isIndexed($file->getId(), $file->getMtime());
                 },
+                userId: $userId,
             );
 
             // Queue indexing in the Lens daemon if enabled.
