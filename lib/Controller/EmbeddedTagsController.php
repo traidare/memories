@@ -33,6 +33,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\Files\IRootFolder;
+use OCP\Config\IUserConfig;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IRequest;
@@ -44,6 +45,7 @@ class EmbeddedTagsController extends GenericApiController
     public function __construct(
         IRequest $request,
         IConfig $config,
+        IUserConfig $userConfig,
         IUserSession $userSession,
         IDBConnection $connection,
         IRootFolder $rootFolder,
@@ -53,7 +55,7 @@ class EmbeddedTagsController extends GenericApiController
         FsManager $fs,
         protected EmbeddedTagsQuery $etq,
     ) {
-        parent::__construct($request, $config, $userSession, $connection, $rootFolder, $appManager, $logger, $tq, $fs);
+        parent::__construct($request, $config, $userConfig, $userSession, $connection, $rootFolder, $appManager, $logger, $tq, $fs);
     }
 
     /**
