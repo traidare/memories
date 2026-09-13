@@ -9,6 +9,12 @@
   }
 }
 
+// NcSelect dropdown appended to body needs higher z-index
+// than NcPopover (z-index: 100000) to render above it
+.vs__dropdown-menu--floating {
+  z-index: 100001 !important;
+}
+
 // Make tag dropdown show over modal
 ul.nc-select__dropdown {
   z-index: 10000;
