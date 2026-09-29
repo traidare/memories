@@ -45,16 +45,16 @@ trait EmbeddedTagsQueryFilters
 
         // Try to determine if this is a regex pattern or simple search
         if ($this->isRegexPattern($pattern)) {
-            // Use REGEXP for MySQL/MariaDB or similar for other databases
-            $dbType = $this->connection->getDatabasePlatform()->getName();
+            // Use REGEXP for MySQL/MariaDB (both PLATFORM_MYSQL) or similar for other databases
+            $provider = $this->connection->getDatabaseProvider();
 
-            if (\in_array($dbType, ['mysql', 'mariadb'], true)) {
+            if (IDBConnection::PLATFORM_MYSQL === $provider) {
                 $param = $query->createNamedParameter($pattern);
                 $query->andWhere($query->expr()->orX(
                     $query->createFunction("et.tag REGEXP {$param}"),
                     $query->createFunction("et.path REGEXP {$param}"),
                 ));
-            } elseif ('postgresql' === $dbType) {
+            } elseif (IDBConnection::PLATFORM_POSTGRES === $provider) {
                 $param = $query->createNamedParameter($pattern);
                 $query->andWhere($query->expr()->orX(
                     $query->createFunction("et.tag ~ {$param}"),
@@ -68,18 +68,6 @@ trait EmbeddedTagsQueryFilters
             // Use LIKE for simple text search
             $this->transformLikeFilter($query, $pattern);
         }
-    }
-
-    /**
-     * Filter tag or path by a literal substring.
-     */
-    private function transformLikeFilter(IQueryBuilder &$query, string $pattern): void
-    {
-        $param = $query->createNamedParameter('%'.$this->escapeLikePattern($pattern).'%');
-        $query->andWhere($query->expr()->orX(
-            $query->createFunction("et.tag LIKE {$param} ESCAPE '!'"),
-            $query->createFunction("et.path LIKE {$param} ESCAPE '!'"),
-        ));
     }
 
     /**
@@ -104,6 +92,18 @@ trait EmbeddedTagsQueryFilters
         if ($offset >= 0) {
             $query->setFirstResult($offset);
         }
+    }
+
+    /**
+     * Filter tag or path by a literal substring.
+     */
+    private function transformLikeFilter(IQueryBuilder &$query, string $pattern): void
+    {
+        $param = $query->createNamedParameter('%'.$this->escapeLikePattern($pattern).'%');
+        $query->andWhere($query->expr()->orX(
+            $query->createFunction("et.tag LIKE {$param} ESCAPE '!'"),
+            $query->createFunction("et.path LIKE {$param} ESCAPE '!'"),
+        ));
     }
 
     /**

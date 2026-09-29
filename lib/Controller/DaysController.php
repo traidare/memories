@@ -218,15 +218,6 @@ final class DaysController extends ApiController
                 continue;
             }
 
-            // Only include photos that are in the fileIds array (if it exists)
-            $dayData = $drefMap[$dayId];
-            if (isset($dayData['fileIds']) && !empty($dayData['fileIds'])) {
-                $photoFileId = (int) $photo['fileid'];
-                if (!\in_array($photoFileId, $dayData['fileIds'], true)) {
-                    continue;
-                }
-            }
-
             if (!($drefMap[$dayId]['detail'] ?? null)) {
                 $drefMap[$dayId]['detail'] = [];
             }
@@ -267,7 +258,7 @@ final class DaysController extends ApiController
 
     private function getMinRating(): int
     {
-        return (int) $this->request->getParam('minRating') ?? 0;
+        return (int) $this->request->getParam('minRating');
     }
 
     /** @return list<string> */

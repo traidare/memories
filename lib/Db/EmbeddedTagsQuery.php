@@ -27,11 +27,11 @@ use OCA\Memories\Util;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
-class EmbeddedTagsQuery
+final class EmbeddedTagsQuery
 {
     use EmbeddedTagsQueryFilters;
 
-    public const TAGS_SELECT = [
+    public const array TAGS_SELECT = [
         'id', 'user_id', 'tag', 'parent_tag_id',
         'path', 'level', 'created_at',
     ];
@@ -154,28 +154,34 @@ class EmbeddedTagsQuery
      */
     private function buildHierarchy(array $tags): array
     {
-        $hierarchy = [];
-        $idMap = [];
-
+        // Group the tags by parent, with tags whose parent is missing at the top
+        $ids = array_column($tags, 'id', 'id');
+        $children = [];
         foreach ($tags as $tag) {
-            $idMap[$tag['id']] = [
-                'id' => $tag['id'],
-                'tag' => $tag['tag'],
-                'path' => $tag['path'],
-                'level' => $tag['level'],
-                'created_at' => $tag['created_at'],
-                'children' => [],
-            ];
+            $parentId = $tag['parent_tag_id'];
+            $children[null !== $parentId && isset($ids[$parentId]) ? (string) $parentId : ''][] = $tag;
         }
 
-        foreach ($tags as $tag) {
-            if (null === $tag['parent_tag_id'] || !isset($idMap[$tag['parent_tag_id']])) {
-                $hierarchy[] = &$idMap[$tag['id']];
-            } else {
-                $idMap[$tag['parent_tag_id']]['children'][] = &$idMap[$tag['id']];
-            }
-        }
+        return $this->buildChildren($children, '');
+    }
 
-        return $hierarchy;
+    /**
+     * Build the tree of the children of a tag.
+     *
+     * @param array<array-key, list<array>> $children Tags grouped by parent ID
+     * @param string                        $parentId Parent ID, or '' for the top level
+     *
+     * @return list<array> Hierarchical structure
+     */
+    private function buildChildren(array $children, string $parentId): array
+    {
+        return array_map(fn (array $tag): array => [
+            'id' => $tag['id'],
+            'tag' => $tag['tag'],
+            'path' => $tag['path'],
+            'level' => $tag['level'],
+            'created_at' => $tag['created_at'],
+            'children' => $this->buildChildren($children, (string) $tag['id']),
+        ], $children[$parentId] ?? []);
     }
 }

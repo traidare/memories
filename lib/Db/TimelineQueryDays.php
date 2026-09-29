@@ -361,28 +361,12 @@ trait TimelineQueryDays
                 $filteredRows[] = [
                     'dayid' => $dayId,
                     'count' => $filteredCount,
-                    'fileIds' => array_values(array_map(static fn ($photo) => $photo['fileid'], $dayPhotos)),
                 ];
             }
         }
 
         // Convert to months if needed
-        if ($monthView) {
-            $filteredRows = array_values(array_reduce($filteredRows, function ($carry, $item) {
-                $monthId = $this->dayIdToMonthId($item['dayid']);
-
-                if (!\array_key_exists($monthId, $carry)) {
-                    $carry[$monthId] = ['dayid' => $monthId, 'count' => 0, 'fileIds' => []];
-                }
-
-                $carry[$monthId]['count'] += $item['count'];
-                array_push($carry[$monthId]['fileIds'], ...$item['fileIds']);
-
-                return $carry;
-            }, []));
-        }
-
-        return $filteredRows;
+        return $this->postProcessDays($filteredRows, $monthView);
     }
 
     /**
@@ -442,8 +426,9 @@ trait TimelineQueryDays
         $row['w'] = (int) $row['w'];
         $row['h'] = (int) $row['h'];
         $row['size'] = (int) $row['size'];
-        if ($row['exif'] ?? null) {
-            $exif = json_decode($row['exif'], true);
+        $exif = $row['exif'] ?? null;
+        if (\is_string($exif) && '' !== $exif) {
+            $exif = json_decode($exif, true);
             $row['exif'] = \is_array($exif) ? $exif : [];
             $row['rating'] = isset($row['exif']['Rating']) ? (int) $row['exif']['Rating'] : null;
             $row['embedded_tags'] = Exif::extractEmbeddedTags($row['exif'], true);

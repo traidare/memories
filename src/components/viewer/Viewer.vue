@@ -1615,7 +1615,8 @@ export default defineComponent({
 
   transition: opacity 0.2s ease-in-out;
   opacity: 0;
-  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video) &:has(.exif, .bottom-bar-right),
+  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video)
+    &:has(.exif, .bottom-bar-right),
   .memories-viewer.force-metadata.fully-opened:not(.is-video) &:has(.exif, .bottom-bar-right) {
     opacity: 1;
   }

@@ -210,5 +210,5 @@ declare module '@typings' {
     minRating: number;
     tags: string[];
     embeddedTags: string[];
-  }
+  };
 }

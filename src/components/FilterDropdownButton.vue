@@ -15,11 +15,7 @@
         </NcButton>
       </template>
       <template #default>
-        <FilterComponent
-          :disabled="disabled"
-          :initial-filters="currentFilters"
-          @filter-change="onFilterChange"
-        />
+        <FilterComponent :disabled="disabled" :initial-filters="currentFilters" @filter-change="onFilterChange" />
       </template>
     </NcPopover>
   </div>
@@ -55,11 +51,12 @@ export default defineComponent({
     },
     initialFilters: {
       type: Object as PropType<IFilters>,
-      default: () => ({
-        minRating: 0,
-        tags: [],
-        embeddedTags: [],
-      } as IFilters),
+      default: () =>
+        ({
+          minRating: 0,
+          tags: [],
+          embeddedTags: [],
+        }) as IFilters,
     },
   },
 

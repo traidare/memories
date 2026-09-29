@@ -28,6 +28,20 @@ final class EmbeddedTagRowsTest extends TestCase
         );
     }
 
+    public function testExtractAllFields(): void
+    {
+        // Flat tags come first, without duplicates or parts of hierarchical tags
+        self::assertSame(
+            ['Solo', 'Sunny', 'Autumn', 'Places/Italy/Rome', 'Events/Wedding', 'People/Anna', 'Pets/Cat', 'A|B/C'],
+            Exif::extractEmbeddedTags([
+                'TagsList' => ['Places/Italy/Rome', 'Solo'],
+                'HierarchicalSubject' => 'Events|Wedding',
+                'Keywords' => ['People/Anna', 'Pets|Cat', 'Sunny', 'solo', 'A|B/C'],
+                'Subject' => ['Rome', 'Autumn'],
+            ], true),
+        );
+    }
+
     public function testRowsIncludeParents(): void
     {
         // Flat tags come first

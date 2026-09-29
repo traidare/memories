@@ -70,13 +70,10 @@
         <div class="tags-container" v-if="embeddedTags.length > 0">
           <template v-for="(tag, idx) in embeddedTags">
             <NcChip v-if="tag.length === 1" :key="`tag-${idx}`" :text="tag[0]" no-close />
-            <div v-else-if="tag.length > 1" :key="`taglist-${idx}`" style="display: inline-block; margin: 2px;">
+            <div v-else-if="tag.length > 1" :key="`taglist-${idx}`" style="display: inline-block; margin: 2px">
               <NcPopover no-focus-trap>
                 <template #trigger>
-                  <NcChip
-                    :text="tag[tag.length - 1]"
-                    no-close
-                  >
+                  <NcChip :text="tag[tag.length - 1]" no-close>
                     <template #icon>
                       <TreeIcon :size="16" />
                     </template>
@@ -460,7 +457,7 @@ export default defineComponent({
       return rating > 0 ? rating : null;
     },
 
-    embeddedTags(): string[][]  {
+    embeddedTags(): string[][] {
       return utils.getTagsFromExif(this.exif);
     },
 
