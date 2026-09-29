@@ -2,7 +2,7 @@
   <div class="outer">
     <div class="mode-selector">
       <NcButton
-        :type="mode === 'add' ? 'primary' : 'secondary'"
+        :variant="mode === 'add' ? 'primary' : 'secondary'"
         class="mode-button"
         :class="{ active: mode === 'add' }"
         @click="mode = 'add'"
@@ -10,7 +10,7 @@
         {{ addTagsLabel }}
       </NcButton>
       <NcButton
-        :type="mode === 'remove' ? 'primary' : 'secondary'"
+        :variant="mode === 'remove' ? 'primary' : 'secondary'"
         class="mode-button"
         :class="{ active: mode === 'remove' }"
         @click="mode = 'remove'"
@@ -18,7 +18,7 @@
         {{ removeTagsLabel }}
       </NcButton>
       <NcButton
-        :type="mode === 'override' ? 'primary' : 'secondary'"
+        :variant="mode === 'override' ? 'primary' : 'secondary'"
         class="mode-button"
         :class="{ active: mode === 'override' }"
         @click="mode = 'override'"

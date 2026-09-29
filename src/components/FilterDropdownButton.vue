@@ -1,9 +1,9 @@
 <template>
   <div class="filter-container">
-    <NcPopover popup-role="dialog">
+    <NcPopover popup-role="dialog" popover-base-class="memories-filter-popover">
       <template #trigger>
         <NcButton
-          type="tertiary-no-background"
+          variant="tertiary-no-background"
           title="Filter photos"
           :aria-label="t('memories', 'Filter photos')"
           class="filter-button"
@@ -18,7 +18,6 @@
         <FilterComponent
           :disabled="disabled"
           :initial-filters="currentFilters"
-          @filter-change="onFilterChange"
         />
       </template>
     </NcPopover>
@@ -26,7 +25,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 import NcButton from '@nextcloud/vue/components/NcButton';
 import NcPopover from '@nextcloud/vue/components/NcPopover';
@@ -53,24 +52,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    initialFilters: {
-      type: Object as PropType<IFilters>,
-      default: () => ({
-        minRating: 0,
-        tags: [],
-        embeddedTags: [],
-      } as IFilters),
-    },
-  },
-
-  emits: {
-    'filter-change': (filters: IFilters) => true,
   },
 
   data: () => ({
     currentFilters: {
       minRating: 0,
-      tags: [],
       embeddedTags: [],
     } as IFilters,
   }),
@@ -86,17 +72,13 @@ export default defineComponent({
   computed: {
     hasActiveFilters() {
       const filters = this.currentFilters;
-      return filters.minRating > 0 || filters.tags.length > 0 || filters.embeddedTags.length > 0;
+      return filters.minRating > 0 || filters.embeddedTags.length > 0;
     },
   },
 
   methods: {
     onFiltersChangedFromBus(filters: IFilters) {
       this.currentFilters = { ...filters };
-    },
-
-    onFilterChange(filters: IFilters) {
-      this.$emit('filter-change', filters);
     },
 
     t,
@@ -132,5 +114,13 @@ export default defineComponent({
       }
     }
   }
+}
+</style>
+
+<style lang="scss">
+// The tag options list is rendered inside the popover, so that picking
+// a tag is not a click outside that closes it. Don't clip the list.
+.memories-filter-popover .v-popper__inner {
+  overflow: visible !important;
 }
 </style>

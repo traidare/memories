@@ -23,50 +23,35 @@ declare(strict_types=1);
 
 namespace OCA\Memories\Controller;
 
+use OCA\Memories\AppInfo\Application;
 use OCA\Memories\Db\EmbeddedTagsQuery;
-use OCA\Memories\Db\FsManager;
-use OCA\Memories\Db\TimelineQuery;
 use OCA\Memories\Exceptions;
 use OCA\Memories\Util;
-use OCP\App\IAppManager;
+use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
-use OCP\Files\IRootFolder;
-use OCP\Config\IUserConfig;
-use OCP\IConfig;
-use OCP\IDBConnection;
 use OCP\IRequest;
-use OCP\IUserSession;
-use Psr\Log\LoggerInterface;
 
-class EmbeddedTagsController extends GenericApiController
+final class EmbeddedTagsController extends ApiController
 {
     public function __construct(
         IRequest $request,
-        IConfig $config,
-        IUserConfig $userConfig,
-        IUserSession $userSession,
-        IDBConnection $connection,
-        IRootFolder $rootFolder,
-        IAppManager $appManager,
-        LoggerInterface $logger,
-        TimelineQuery $tq,
-        FsManager $fs,
+        protected Util $util,
         protected EmbeddedTagsQuery $etq,
     ) {
-        parent::__construct($request, $config, $userConfig, $userSession, $connection, $rootFolder, $appManager, $logger, $tq, $fs);
+        parent::__construct(Application::APPNAME, $request);
     }
 
     /**
-     * Get tags in flat manner with optional filtering and pagination
+     * Get tags in flat manner with optional filtering and pagination.
      */
     #[NoAdminRequired]
     public function flat(): Http\Response
     {
-        return Util::guardEx(function () {
+        return $this->util->guardEx(function () {
             // Check if user is logged in
-            if (!Util::isLoggedIn()) {
+            if (!$this->util->isLoggedIn()) {
                 throw Exceptions::NotLoggedIn();
             }
 
@@ -76,16 +61,16 @@ class EmbeddedTagsController extends GenericApiController
             $offset = $this->request->getParam('offset');
 
             // Validate and sanitize parameters
-            $limit = $limit !== null ? max(1, min(1000, (int) $limit)) : null;
-            $offset = $offset !== null ? max(0, (int) $offset) : null;
-            $pattern = $pattern !== null ? (string) $pattern : null;
+            $limit = null !== $limit ? max(1, min(1000, (int) $limit)) : null;
+            $offset = null !== $offset ? max(0, (int) $offset) : null;
+            $pattern = null !== $pattern ? (string) $pattern : null;
 
             // Get tags
             $tags = $this->etq->getTagsFlat($pattern, $limit, $offset);
 
             // Get total count for pagination
             $totalCount = null;
-            if ($limit !== null || $offset !== null) {
+            if (null !== $limit || null !== $offset) {
                 $totalCount = $this->etq->getTagsCount($pattern);
             }
 
@@ -94,7 +79,7 @@ class EmbeddedTagsController extends GenericApiController
                 'tags' => $tags,
             ];
 
-            if ($totalCount !== null) {
+            if (null !== $totalCount) {
                 $response['pagination'] = [
                     'total' => $totalCount,
                     'limit' => $limit,
@@ -107,54 +92,54 @@ class EmbeddedTagsController extends GenericApiController
     }
 
     /**
-     * Get tags in hierarchical structure
+     * Get tags in hierarchical structure.
      */
     #[NoAdminRequired]
     public function hierarchical(): Http\Response
     {
-        return Util::guardEx(function () {
+        return $this->util->guardEx(function () {
             // Check if user is logged in
-            if (!Util::isLoggedIn()) {
+            if (!$this->util->isLoggedIn()) {
                 throw Exceptions::NotLoggedIn();
             }
 
             // Get query parameters
             $pattern = $this->request->getParam('pattern');
-            $pattern = $pattern !== null ? (string) $pattern : null;
+            $pattern = null !== $pattern ? (string) $pattern : null;
 
             // Get tags in hierarchical structure
             $tags = $this->etq->getTagsHierarchical($pattern);
 
             return new JSONResponse([
                 'tags' => $tags,
-                'structure' => 'hierarchical'
+                'structure' => 'hierarchical',
             ], Http::STATUS_OK);
         });
     }
 
     /**
-     * Get tags count (useful for pagination info)
+     * Get tags count (useful for pagination info).
      */
     #[NoAdminRequired]
     public function count(): Http\Response
     {
-        return Util::guardEx(function () {
+        return $this->util->guardEx(function () {
             // Check if user is logged in
-            if (!Util::isLoggedIn()) {
+            if (!$this->util->isLoggedIn()) {
                 throw Exceptions::NotLoggedIn();
             }
 
             // Get query parameters
             $pattern = $this->request->getParam('pattern');
-            $pattern = $pattern !== null ? (string) $pattern : null;
+            $pattern = null !== $pattern ? (string) $pattern : null;
 
             // Get count
             $count = $this->etq->getTagsCount($pattern);
 
             return new JSONResponse([
                 'count' => $count,
-                'pattern' => $pattern
+                'pattern' => $pattern,
             ], Http::STATUS_OK);
         });
     }
-} 
+}

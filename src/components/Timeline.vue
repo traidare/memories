@@ -183,7 +183,6 @@ export default defineComponent({
     /** Current filters */
     filters: {
       minRating: 0,
-      tags: [],
       embeddedTags: [],
     } as IFilters,
 
@@ -292,7 +291,7 @@ export default defineComponent({
 
     /** Whether any filters are applied */
     hasFilters(): boolean {
-      return this.filters.minRating > 0 || this.filters.tags.length > 0;
+      return this.filters.minRating > 0 || this.filters.embeddedTags.length > 0;
     },
 
     /** Show the empty content box and hide the scrollbar */
@@ -642,11 +641,6 @@ export default defineComponent({
       // Rating
       if (this.filters.minRating > 0) {
         set(DaysFilterType.RATING, this.filters.minRating.toString());
-      }
-
-      // Tags
-      if (this.filters.tags.length > 0) {
-        set(DaysFilterType.TAG, this.filters.tags.join(','));
       }
 
       // Embedded Tags
@@ -1567,17 +1561,18 @@ export default defineComponent({
     },
 
     onFiltersChanged(filters: IFilters) {
+      // Don't refresh for filters that didn't change, e.g. picking the current rating again
+      if (JSON.stringify(filters) === JSON.stringify(this.filters)) return;
       this.filters = filters;
       this.refresh();
     },
 
     resetFilters() {
-      this.filters = {
+      // Go through the bus so the filter dropdown is reset as well
+      utils.bus.emit('memories:filters:changed', {
         minRating: 0,
-        tags: [],
         embeddedTags: [],
-      };
-      this.refresh();
+      });
     },
   },
 });

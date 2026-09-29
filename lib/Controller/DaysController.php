@@ -25,6 +25,7 @@ namespace OCA\Memories\Controller;
 
 use OCA\Memories\AppInfo\Application;
 use OCA\Memories\ClustersBackend;
+use OCA\Memories\Db\EmbeddedTagFilter;
 use OCA\Memories\Db\TimelineQuery;
 use OCA\Memories\Util;
 use OCP\AppFramework\ApiController;
@@ -217,15 +218,6 @@ final class DaysController extends ApiController
                 continue;
             }
 
-            // Only include photos that are in the fileIds array (if it exists)
-            $dayData = $drefMap[$dayId];
-            if (isset($dayData['fileIds']) && !empty($dayData['fileIds'])) {
-                $photoFileId = (int) $photo['fileid'];
-                if (!in_array($photoFileId, $dayData['fileIds'], true)) {
-                    continue;
-                }
-            }
-
             if (!($drefMap[$dayId]['detail'] ?? null)) {
                 $drefMap[$dayId]['detail'] = [];
             }
@@ -269,14 +261,9 @@ final class DaysController extends ApiController
         return (int) $this->request->getParam('minRating') ?? 0;
     }
 
+    /** @return list<string> */
     private function getEmbeddedTags(): array
     {
-        $embeddedTagsParam = $this->request->getParam('embeddedTags');
-        if ($embeddedTagsParam) {
-            // Decode URI-encoded string before splitting
-            $decoded = urldecode($embeddedTagsParam);
-            return explode(',', $decoded);
-        }
-        return [];
+        return EmbeddedTagFilter::parse($this->request->getParam('embeddedTags'));
     }
 }

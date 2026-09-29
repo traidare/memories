@@ -31,9 +31,8 @@ trait EmbeddedTagsQueryFilters
     protected IDBConnection $connection;
 
     /**
-     * Transform query to filter by pattern using LIKE or REGEXP
+     * Transform query to filter by pattern using LIKE or REGEXP.
      *
-     * @param IQueryBuilder $query
      * @param string $pattern Pattern to search for
      */
     public function transformPatternFilter(IQueryBuilder &$query, string $pattern): void
@@ -46,83 +45,57 @@ trait EmbeddedTagsQueryFilters
 
         // Try to determine if this is a regex pattern or simple search
         if ($this->isRegexPattern($pattern)) {
-            // Use REGEXP for MySQL/MariaDB or similar for other databases
-            $dbType = $this->connection->getDatabasePlatform()->getName();
-            
-            if (in_array($dbType, ['mysql', 'mariadb'], true)) {
+            // Use REGEXP for MySQL/MariaDB (both PLATFORM_MYSQL) or similar for other databases
+            $provider = $this->connection->getDatabaseProvider();
+
+            if (IDBConnection::PLATFORM_MYSQL === $provider) {
+                $param = $query->createNamedParameter($pattern);
                 $query->andWhere($query->expr()->orX(
-                    $query->createFunction("et.tag REGEXP " . $query->createNamedParameter($pattern)),
-                    $query->createFunction("et.path REGEXP " . $query->createNamedParameter($pattern))
+                    $query->createFunction("et.tag REGEXP {$param}"),
+                    $query->createFunction("et.path REGEXP {$param}"),
                 ));
-            } elseif ($dbType === 'postgresql') {
+            } elseif (IDBConnection::PLATFORM_POSTGRES === $provider) {
+                $param = $query->createNamedParameter($pattern);
                 $query->andWhere($query->expr()->orX(
-                    $query->createFunction("et.tag ~ " . $query->createNamedParameter($pattern)),
-                    $query->createFunction("et.path ~ " . $query->createNamedParameter($pattern))
+                    $query->createFunction("et.tag ~ {$param}"),
+                    $query->createFunction("et.path ~ {$param}"),
                 ));
             } else {
                 // Fallback to LIKE for SQLite and others
-                $likePattern = '%' . $this->escapeLikePattern($pattern) . '%';
-                $query->andWhere($query->expr()->orX(
-                    $query->expr()->like('et.tag', $query->createNamedParameter($likePattern)),
-                    $query->expr()->like('et.path', $query->createNamedParameter($likePattern))
-                ));
+                $this->transformLikeFilter($query, $pattern);
             }
         } else {
             // Use LIKE for simple text search
-            $likePattern = '%' . $this->escapeLikePattern($pattern) . '%';
-            $query->andWhere($query->expr()->orX(
-                $query->expr()->like('et.tag', $query->createNamedParameter($likePattern)),
-                $query->expr()->like('et.path', $query->createNamedParameter($likePattern))
-            ));
+            $this->transformLikeFilter($query, $pattern);
         }
     }
 
     /**
-     * Apply limit transformation for pagination
-     *
-     * @param IQueryBuilder $query
-     * @param int $limit Maximum number of results
+     * Filter tag or path by a literal substring.
      */
-    public function transformLimit(IQueryBuilder &$query, int $limit): void
+    private function transformLikeFilter(IQueryBuilder &$query, string $pattern): void
     {
-        if ($limit >= 1 && $limit <= 1000) { // Allow larger limits for tags
-            $query->setMaxResults($limit);
-        }
+        $param = $query->createNamedParameter('%'.$this->escapeLikePattern($pattern).'%');
+        $query->andWhere($query->expr()->orX(
+            $query->createFunction("et.tag LIKE {$param} ESCAPE '!'"),
+            $query->createFunction("et.path LIKE {$param} ESCAPE '!'"),
+        ));
     }
 
     /**
-     * Apply offset transformation for pagination
-     *
-     * @param IQueryBuilder $query
-     * @param int $offset Number of results to skip
-     */
-    public function transformOffset(IQueryBuilder &$query, int $offset): void
-    {
-        if ($offset >= 0) {
-            $query->setFirstResult($offset);
-        }
-    }
-
-    /**
-     * Check if the pattern looks like a regex
-     *
-     * @param string $pattern
-     * @return bool
+     * Check if the pattern looks like a regex.
      */
     private function isRegexPattern(string $pattern): bool
     {
         // Simple heuristic: check for common regex characters
-        return preg_match('/[.*+?^${}()|[\]\\\\]/', $pattern) === 1;
+        return 1 === preg_match('/[.*+?^${}()|[\]\\\]/', $pattern);
     }
 
     /**
-     * Escape special characters for LIKE pattern
-     *
-     * @param string $pattern
-     * @return string
+     * Escape special characters for LIKE pattern.
      */
     private function escapeLikePattern(string $pattern): string
     {
-        return str_replace(['%', '_'], ['\\%', '\\_'], $pattern);
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $pattern);
     }
-} 
+}

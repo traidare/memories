@@ -14,7 +14,7 @@
           />
           <NcButton 
             v-if="filters.minRating > 0"
-            type="tertiary-no-background"
+            variant="tertiary-no-background"
             :aria-label="t('memories', 'Clear rating filter')"
             @click="clearRating"
           >
@@ -25,35 +25,18 @@
         </div>
       </div>
 
-      <!-- Tags Filter -->
-      <div v-if="showCollaborativeTagsFilter" class="filter-section">
-        <label class="filter-label">
-          {{ t('memories', 'Filter by Tags') }}
-        </label>
-        <NcSelectTags
-          ref="selectTags"
-          v-model="filters.tags"
-          class="tags-filter"
-          :label-outside="false"
-          :disabled="disabled"
-          :limit="null"
-          :options-filter="tagFilter"
-          :get-option-label="tagLabel"
-          :placeholder="t('memories', 'Select tags...')"
-        />
-      </div>
-
       <!-- Embedded Tags Filter -->
       <div class="filter-section">
         <label class="filter-label">
           {{ t('memories', 'Filter by Embedded Tags') }}
         </label>
         <EmbeddedTagSelector
-          v-model="filters.embeddedTags"
+          :value="filters.embeddedTags"
           class="embedded-tags-filter"
           :disabled="disabled"
           :placeholder="t('memories', 'Select embedded tags...')"
           :show-full-path="true"
+          :append-to-body="false"
           @update:value="onEmbeddedTagsChange"
         />
       </div>
@@ -61,7 +44,7 @@
       <!-- Filter Actions -->
       <div class="filter-actions">
         <NcButton
-          type="secondary"
+          variant="secondary"
           @click="clearAllFilters"
           :disabled="!hasActiveFilters"
         >
@@ -76,7 +59,6 @@
 import type { IFilters } from '@typings';
 
 import NcButton from '@nextcloud/vue/components/NcButton';
-import NcSelectTags from '@nextcloud/vue/components/NcSelectTags';
 import CloseIcon from 'vue-material-design-icons/Close.vue';
 import { translate as t } from '@services/l10n';
 import * as utils from '@services/utils';
@@ -90,7 +72,6 @@ export default defineComponent({
   
   components: {
     NcButton,
-    NcSelectTags,
     RatingStars,
     CloseIcon,
     EmbeddedTagSelector,
@@ -107,23 +88,14 @@ export default defineComponent({
       type: Object as PropType<IFilters>,
       default: () => ({
         minRating: 0,
-        tags: [],
         embeddedTags: [],
       } as IFilters),
     },
-    /** Whether to show collaborative tags filter (false = only embedded tags supported) */
-    showCollaborativeTagsFilter: {
-      type: Boolean,
-      default: false,
-    },
   },
-
-  emits: ['filter-change'],
 
   data: () => ({
     filters: {
       minRating: 0,
-      tags: [],
       embeddedTags: [],
     } as IFilters,
   }),
@@ -131,9 +103,8 @@ export default defineComponent({
   computed: {
     hasActiveFilters() {
       const hasRatingFilter = this.filters.minRating > 0;
-      const hasTagsFilter = this.showCollaborativeTagsFilter && this.filters.tags.length > 0;
       const hasEmbeddedTagsFilter = this.filters.embeddedTags.length > 0;
-      return hasRatingFilter || hasTagsFilter || hasEmbeddedTagsFilter;
+      return hasRatingFilter || hasEmbeddedTagsFilter;
     },
   },
 
@@ -142,7 +113,6 @@ export default defineComponent({
       handler(newFilters) {
         this.filters = {
           minRating: newFilters.minRating || 0,
-          tags: newFilters.tags || [],
           embeddedTags: newFilters.embeddedTags || [],
         };
       },
@@ -154,16 +124,10 @@ export default defineComponent({
   methods: {
     emitFilterChange() {
       utils.bus.emit('memories:filters:changed', { ...this.filters });
-      this.$emit('filter-change', { ...this.filters });
     },
 
     onRatingChange(rating: number) {
       this.filters.minRating = rating;
-      this.emitFilterChange();
-    },
-
-    onTagsChange(tags: string[]) {
-      this.filters.tags = tags;
       this.emitFilterChange();
     },
 
@@ -180,18 +144,9 @@ export default defineComponent({
     clearAllFilters() {
       this.filters = {
         minRating: 0,
-        tags: [],
         embeddedTags: [],
       };
       this.emitFilterChange();
-    },
-
-    tagFilter(element: any) {
-      return element.displayName !== '' && element.canAssign && element.userAssignable && element.userVisible;
-    },
-
-    tagLabel({ displayName }: { displayName: string }) {
-      return displayName;
     },
 
     t(app: string, text: string, vars: Record<string, string>) {
@@ -230,14 +185,6 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.tags-filter {
-  width: 100%;
-
-  :deep ul {
-    max-height: 150px;
-  }
 }
 
 .embedded-tags-filter {

@@ -22,6 +22,9 @@ trait TimelineQueryFilters
         $query->setParameter('minRating', $minRating, IQueryBuilder::PARAM_INT);
     }
 
+    /**
+     * @param list<string> $embeddedTags
+     */
     public function transformEmbeddedTagsFilter(IQueryBuilder &$query, bool $aggregate, array $embeddedTags): void
     {
         if (empty($embeddedTags) || !$this->shouldFilterExifBySQL()) {
@@ -29,19 +32,31 @@ trait TimelineQueryFilters
         }
 
         $fields = ['Keywords', 'Subject', 'TagsList', 'HierarchicalSubject'];
-        
+
         foreach ($embeddedTags as $index => $tag) {
-            $tagParam = "tag_{$index}";
             $or = $query->expr()->orX();
-            
+
             foreach ($fields as $field) {
-                // Check if the field contains this specific tag
-                $or->add("JSON_CONTAINS(JSON_EXTRACT(m.exif, '$.{$field}'), JSON_QUOTE(:{$tagParam}))");
+                $separators = \in_array($field, ['Keywords', 'HierarchicalSubject'], true) ? ['/', '|'] : ['/'];
+                foreach ($separators as $separator) {
+                    $rawTag = '|' === $separator ? str_replace('/', '|', $tag) : $tag;
+                    $suffix = '/' === $separator ? 'slash' : 'pipe';
+                    $tagParam = "tag_{$index}_{$field}_{$suffix}";
+                    $prefixParam = "prefix_{$index}_{$field}_{$suffix}";
+                    $json = "JSON_EXTRACT(m.exif, '$.{$field}')";
+
+                    $or->add("JSON_CONTAINS({$json}, JSON_QUOTE(:{$tagParam})) = 1");
+                    $or->add("JSON_SEARCH({$json}, 'one', :{$prefixParam}, '!') IS NOT NULL");
+                    $query->setParameter($tagParam, $rawTag, IQueryBuilder::PARAM_STR);
+                    $query->setParameter(
+                        $prefixParam,
+                        str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $rawTag).$separator.'%',
+                        IQueryBuilder::PARAM_STR,
+                    );
+                }
             }
-            
-            // Add AND condition for this tag
+
             $query->andWhere($or);
-            $query->setParameter($tagParam, $tag, IQueryBuilder::PARAM_STR);
         }
     }
 

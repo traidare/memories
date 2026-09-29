@@ -114,14 +114,6 @@ export class API {
     return gen(`${BASE}/embedded-tags/flat`);
   }
 
-  static EMBEDDED_TAGS_HIERARCHICAL() {
-    return gen(`${BASE}/embedded-tags/hierarchical`);
-  }
-
-  static EMBEDDED_TAGS_COUNT() {
-    return gen(`${BASE}/embedded-tags/count`);
-  }
-
   static FACE_LIST(app: 'recognize' | 'facerecognition') {
     return gen(`${BASE}/clusters/${app}`);
   }
