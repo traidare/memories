@@ -14,7 +14,7 @@
           />
           <NcButton 
             v-if="filters.minRating > 0"
-            type="tertiary-no-background"
+            variant="tertiary-no-background"
             :aria-label="t('memories', 'Clear rating filter')"
             @click="clearRating"
           >
@@ -49,11 +49,12 @@
           {{ t('memories', 'Filter by Embedded Tags') }}
         </label>
         <EmbeddedTagSelector
-          v-model="filters.embeddedTags"
+          :value="filters.embeddedTags"
           class="embedded-tags-filter"
           :disabled="disabled"
           :placeholder="t('memories', 'Select embedded tags...')"
           :show-full-path="true"
+          :append-to-body="false"
           @update:value="onEmbeddedTagsChange"
         />
       </div>
@@ -61,7 +62,7 @@
       <!-- Filter Actions -->
       <div class="filter-actions">
         <NcButton
-          type="secondary"
+          variant="secondary"
           @click="clearAllFilters"
           :disabled="!hasActiveFilters"
         >

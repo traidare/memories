@@ -1,6 +1,6 @@
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus';
 import type { FragmentName, Fragment } from './fragment';
-import type { IConfig, IPhoto } from '@typings';
+import type { IConfig, IFilters, IPhoto } from '@typings';
 
 export type BusEvent = {
   /** Open/close the navigation drawer */
@@ -28,10 +28,7 @@ export type BusEvent = {
   } | null;
 
   /** Filters have been updated */
-  'memories:filters:changed': {
-    minRating: number;
-    tags: string[];
-  };
+  'memories:filters:changed': IFilters;
 
   /**
    * Remove these photos from the timeline.

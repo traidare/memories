@@ -1,9 +1,9 @@
 <template>
   <div class="filter-container">
-    <NcPopover popup-role="dialog">
+    <NcPopover popup-role="dialog" popover-base-class="memories-filter-popover">
       <template #trigger>
         <NcButton
-          type="tertiary-no-background"
+          variant="tertiary-no-background"
           title="Filter photos"
           :aria-label="t('memories', 'Filter photos')"
           class="filter-button"
@@ -132,5 +132,13 @@ export default defineComponent({
       }
     }
   }
+}
+</style>
+
+<style lang="scss">
+// The tag options list is rendered inside the popover, so that picking
+// a tag is not a click outside that closes it. Don't clip the list.
+.memories-filter-popover .v-popper__inner {
+  overflow: visible !important;
 }
 </style>

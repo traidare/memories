@@ -291,7 +291,7 @@ export default defineComponent({
 
     /** Whether any filters are applied */
     hasFilters(): boolean {
-      return this.filters.minRating > 0 || this.filters.tags.length > 0;
+      return this.filters.minRating > 0 || this.filters.tags.length > 0 || this.filters.embeddedTags.length > 0;
     },
 
     /** Show the empty content box and hide the scrollbar */
@@ -1566,17 +1566,19 @@ export default defineComponent({
     },
 
     onFiltersChanged(filters: IFilters) {
+      // Don't refresh for filters that didn't change, e.g. picking the current rating again
+      if (JSON.stringify(filters) === JSON.stringify(this.filters)) return;
       this.filters = filters;
       this.refresh();
     },
 
     resetFilters() {
-      this.filters = {
+      // Go through the bus so the filter dropdown is reset as well
+      utils.bus.emit('memories:filters:changed', {
         minRating: 0,
         tags: [],
         embeddedTags: [],
-      };
-      this.refresh();
+      });
     },
   },
 });

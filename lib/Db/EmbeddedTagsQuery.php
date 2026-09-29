@@ -26,8 +26,6 @@ namespace OCA\Memories\Db;
 use OCA\Memories\Util;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
-use OCP\IRequest;
-use OCP\IUserManager;
 
 class EmbeddedTagsQuery
 {
@@ -35,13 +33,12 @@ class EmbeddedTagsQuery
 
     public const TAGS_SELECT = [
         'id', 'user_id', 'tag', 'parent_tag_id',
-        'path', 'level', 'created_at'
+        'path', 'level', 'created_at',
     ];
 
     public function __construct(
         protected IDBConnection $connection,
-        protected IRequest $request,
-        protected IUserManager $userManager,
+        protected Util $util,
     ) {}
 
     public function getBuilder(): IQueryBuilder
@@ -50,11 +47,12 @@ class EmbeddedTagsQuery
     }
 
     /**
-     * Get all tags for a user in flat manner with optional filtering and pagination
+     * Get all tags for a user in flat manner with optional filtering and pagination.
      *
-     * @param string|null $pattern Optional regex pattern to filter tags
-     * @param int|null $limit Optional limit for pagination
-     * @param int|null $offset Optional offset for pagination
+     * @param null|string $pattern Optional regex pattern to filter tags
+     * @param null|int    $limit   Optional limit for pagination
+     * @param null|int    $offset  Optional offset for pagination
+     *
      * @return array List of tags
      */
     public function getTagsFlat(?string $pattern = null, ?int $limit = null, ?int $offset = null): array
@@ -63,19 +61,20 @@ class EmbeddedTagsQuery
 
         $query->select(self::TAGS_SELECT)
             ->from('memories_embedded_tags', 'et')
-            ->where($query->expr()->eq('user_id', $query->createNamedParameter(Util::getUID())))
-            ->orderBy('path', 'ASC');
+            ->where($query->expr()->eq('user_id', $query->createNamedParameter($this->util->getUID())))
+            ->orderBy('path', 'ASC')
+        ;
 
         // Apply pattern filter if provided
-        if ($pattern !== null) {
+        if (null !== $pattern) {
             $this->transformPatternFilter($query, $pattern);
         }
 
         // Apply pagination if provided
-        if ($limit !== null) {
+        if (null !== $limit) {
             $query->setMaxResults($limit);
         }
-        if ($offset !== null) {
+        if (null !== $offset) {
             $query->setFirstResult($offset);
         }
 
@@ -83,9 +82,10 @@ class EmbeddedTagsQuery
     }
 
     /**
-     * Get all tags for a user in hierarchical structure
+     * Get all tags for a user in hierarchical structure.
      *
-     * @param string|null $pattern Optional regex pattern to filter tags
+     * @param null|string $pattern Optional regex pattern to filter tags
+     *
      * @return array Hierarchical structure of tags
      */
     public function getTagsHierarchical(?string $pattern = null): array
@@ -95,25 +95,35 @@ class EmbeddedTagsQuery
 
         $query->select(self::TAGS_SELECT)
             ->from('memories_embedded_tags', 'et')
-            ->where($query->expr()->eq('user_id', $query->createNamedParameter(Util::getUID())))
+            ->where($query->expr()->eq('user_id', $query->createNamedParameter($this->util->getUID())))
             ->orderBy('level', 'ASC')
-            ->addOrderBy('tag', 'ASC');
-
-        // Apply pattern filter if provided
-        if ($pattern !== null) {
-            $this->transformPatternFilter($query, $pattern);
-        }
+            ->addOrderBy('tag', 'ASC')
+        ;
 
         $allTags = $query->executeQuery()->fetchAll() ?: [];
+
+        if (null !== $pattern && '' !== trim($pattern)) {
+            $byId = array_column($allTags, null, 'id');
+            $keep = [];
+            foreach ($this->getTagsFlat($pattern) as $match) {
+                $id = $match['id'];
+                while (isset($byId[$id]) && !isset($keep[$id])) {
+                    $keep[$id] = true;
+                    $id = $byId[$id]['parent_tag_id'];
+                }
+            }
+            $allTags = array_values(array_filter($allTags, static fn (array $tag): bool => isset($keep[$tag['id']])));
+        }
 
         // Build hierarchical structure
         return $this->buildHierarchy($allTags);
     }
 
     /**
-     * Get count of tags matching pattern
+     * Get count of tags matching pattern.
      *
-     * @param string|null $pattern Optional regex pattern to filter tags
+     * @param null|string $pattern Optional regex pattern to filter tags
+     *
      * @return int Number of tags
      */
     public function getTagsCount(?string $pattern = null): int
@@ -122,21 +132,24 @@ class EmbeddedTagsQuery
 
         $query->select($query->func()->count('*', 'count'))
             ->from('memories_embedded_tags', 'et')
-            ->where($query->expr()->eq('user_id', $query->createNamedParameter(Util::getUID())));
+            ->where($query->expr()->eq('user_id', $query->createNamedParameter($this->util->getUID())))
+        ;
 
         // Apply pattern filter if provided
-        if ($pattern !== null) {
+        if (null !== $pattern) {
             $this->transformPatternFilter($query, $pattern);
         }
 
         $result = $query->executeQuery()->fetch();
+
         return (int) ($result['count'] ?? 0);
     }
 
     /**
-     * Build hierarchical structure from flat tags array
+     * Build hierarchical structure from flat tags array.
      *
      * @param array $tags Flat array of tags
+     *
      * @return array Hierarchical structure
      */
     private function buildHierarchy(array $tags): array
@@ -144,29 +157,22 @@ class EmbeddedTagsQuery
         $hierarchy = [];
         $idMap = [];
 
-        // First pass: create nodes and map by ID
         foreach ($tags as $tag) {
-            $node = [
+            $idMap[$tag['id']] = [
                 'id' => $tag['id'],
                 'tag' => $tag['tag'],
                 'path' => $tag['path'],
                 'level' => $tag['level'],
                 'created_at' => $tag['created_at'],
-                'children' => []
+                'children' => [],
             ];
-            $idMap[$tag['id']] = &$node;
         }
 
-        // Second pass: build hierarchy
         foreach ($tags as $tag) {
-            if ($tag['parent_tag_id'] === null) {
-                // Root level tag
+            if (null === $tag['parent_tag_id'] || !isset($idMap[$tag['parent_tag_id']])) {
                 $hierarchy[] = &$idMap[$tag['id']];
             } else {
-                // Child tag
-                if (isset($idMap[$tag['parent_tag_id']])) {
-                    $idMap[$tag['parent_tag_id']]['children'][] = &$idMap[$tag['id']];
-                }
+                $idMap[$tag['parent_tag_id']]['children'][] = &$idMap[$tag['id']];
             }
         }
 

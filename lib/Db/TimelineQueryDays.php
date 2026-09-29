@@ -201,12 +201,12 @@ trait TimelineQueryDays
 
         // Filter by rating
         if ($minRating > 0) {
-            $day = array_values(array_filter($day, fn ($photo) => ($photo['rating'] ?? 0) >= $minRating));
+            $day = array_values(array_filter($day, static fn ($photo) => ($photo['rating'] ?? 0) >= $minRating));
         }
 
         // Filter by embedded tags
         if ($embeddedTags) {
-            $day = array_values(array_filter($day, fn ($photo) => count(array_intersect($embeddedTags, $photo['embedded_tags'] ?? [])) > 0));
+            $day = array_values(array_filter($day, static fn ($photo) => EmbeddedTagFilter::matchesAll($embeddedTags, $photo['embedded_tags'] ?? [])));
         }
 
         return $day;
@@ -305,8 +305,7 @@ trait TimelineQueryDays
         bool $recursive,
         bool $archive,
         array $queryTransforms,
-    ): array
-    {
+    ): array {
         if (empty($rows)) {
             return $rows;
         }
@@ -349,22 +348,20 @@ trait TimelineQueryDays
 
             // Apply EXIF filters
             if ($minRating > 0) {
-                $dayPhotos = array_filter($dayPhotos, fn ($photo) => ($photo['rating'] ?? 0) >= $minRating);
+                $dayPhotos = array_filter($dayPhotos, static fn ($photo) => ($photo['rating'] ?? 0) >= $minRating);
             }
 
             if (!empty($embeddedTags)) {
-                $dayPhotos = array_filter($dayPhotos, fn ($photo) =>
-                    count(array_intersect($embeddedTags, $photo['embedded_tags'] ?? [])) === count($embeddedTags)
-                );
+                $dayPhotos = array_filter($dayPhotos, static fn ($photo) => EmbeddedTagFilter::matchesAll($embeddedTags, $photo['embedded_tags'] ?? []));
             }
 
             // Only include days with qualifying photos
-            $filteredCount = count($dayPhotos);
+            $filteredCount = \count($dayPhotos);
             if ($filteredCount > 0) {
                 $filteredRows[] = [
                     'dayid' => $dayId,
                     'count' => $filteredCount,
-                    'fileIds' => array_values(array_map(fn ($photo) => $photo['fileid'], $dayPhotos)),
+                    'fileIds' => array_values(array_map(static fn ($photo) => $photo['fileid'], $dayPhotos)),
                 ];
             }
         }
@@ -374,7 +371,7 @@ trait TimelineQueryDays
             $filteredRows = array_values(array_reduce($filteredRows, function ($carry, $item) {
                 $monthId = $this->dayIdToMonthId($item['dayid']);
 
-                if (!array_key_exists($monthId, $carry)) {
+                if (!\array_key_exists($monthId, $carry)) {
                     $carry[$monthId] = ['dayid' => $monthId, 'count' => 0, 'fileIds' => []];
                 }
 
@@ -390,16 +387,12 @@ trait TimelineQueryDays
 
     /**
      * Extract embedded tags from request parameter.
+     *
+     * @return list<string>
      */
     private function getEmbeddedTagsFromRequest(): array
     {
-        $embeddedTagsParam = $this->request->getParam('embeddedTags');
-        if ($embeddedTagsParam) {
-            // Decode URI-encoded string before splitting
-            $decoded = urldecode($embeddedTagsParam);
-            return explode(',', $decoded);
-        }
-        return [];
+        return EmbeddedTagFilter::parse($this->request->getParam('embeddedTags'));
     }
 
     /**
@@ -451,7 +444,7 @@ trait TimelineQueryDays
         $row['size'] = (int) $row['size'];
         if ($row['exif'] ?? null) {
             $exif = json_decode($row['exif'], true);
-            $row['exif'] = is_array($exif) ? $exif : [];
+            $row['exif'] = \is_array($exif) ? $exif : [];
             $row['rating'] = isset($row['exif']['Rating']) ? (int) $row['exif']['Rating'] : null;
             $row['embedded_tags'] = Exif::extractEmbeddedTags($row['exif'], true);
         }

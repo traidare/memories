@@ -1,5 +1,5 @@
 <template>
-  <div class="embedded-tag-selector">
+  <div class="embedded-tag-selector" @mousedown.capture="keepFocusOnDeselect">
     <NcSelect
       :no-wrap="noWrap"
       v-model="selectedTags"
@@ -10,6 +10,7 @@
       :placeholder="placeholder"
       :keep-open="true"
       :disabled="disabled"
+      :append-to-body="appendToBody"
       :taggable="true"
       @option:created="handleCreate"
     />
@@ -71,6 +72,12 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+
+    /** Render the options list in <body> instead of below the input */
+    appendToBody: {
+      type: Boolean,
+      default: true,
+    },
   },
 
   emits: ['update:value'],
@@ -92,7 +99,10 @@ export default defineComponent({
     },
 
     selectedTags(newSelection) {
-      this.$emit('update:value', newSelection);
+      // Don't echo a selection that came from the parent
+      if (newSelection !== this.value) {
+        this.$emit('update:value', newSelection);
+      }
     },
   },
 
@@ -115,6 +125,14 @@ export default defineComponent({
         this.allTags = [];
       } finally {
         this.loading = false;
+      }
+    },
+
+    keepFocusOnDeselect(event) {
+      // Pressing a tag's remove button would focus it, and the search input
+      // losing focus closes the options list. Keep the focus where it is.
+      if (event.target.closest('.vs__deselect')) {
+        event.preventDefault();
       }
     },
 
