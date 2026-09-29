@@ -89,23 +89,9 @@ final class Index
         // Get the root folder of the user
         $userFolder = $this->rootFolder->getUserFolder($uid);
 
-        // Get paths of folders to index
-        $mode = $this->systemConfig->get('memories.index.mode');
-        if (null !== $forcePath) {
-            $paths = [$forcePath];
-        } elseif ('1' === $mode || '0' === $mode) { // everything (or nothing)
-            $paths = ['/'];
-        } elseif ('2' === $mode) { // timeline
-            $paths = $this->systemConfig->getTimelinePaths($uid);
-        } elseif ('3' === $mode) { // custom
-            $paths = [$this->systemConfig->get('memories.index.path')];
-        } else {
-            throw new \Exception('Invalid index mode');
-        }
-
         // If a folder is specified, traverse only that folder
         $indexPaths = [];
-        foreach ($paths as $path) {
+        foreach (null !== $forcePath ? [$forcePath] : $this->getIndexPaths($uid) as $path) {
             try {
                 $node = $userFolder->get($path);
             } catch (\Exception $e) {
@@ -126,41 +112,43 @@ final class Index
         }
 
         // Index all paths including mounts.
+        // Only a complete run knows all tags of the user's files.
         if (\count($indexPaths) > 0) {
             $root = new TimelineRoot();
             $this->fsManager->populateRoot($root, true, $user, $indexPaths);
-            $this->indexFolderIds($userFolder, $root->getIds(), $uid);
+            $this->indexFolderIds($userFolder, $root->getIds(), $uid, pruneTags: null === $forcePath);
         }
     }
 
     /**
      * Index all files under the given top folder ids.
      *
-     * @param Folder $folder Folder to materialize candidates in (scopes getById)
-     * @param int[]  $topIds top folder fileids to crawl, mounts already expanded
+     * @param Folder  $folder    Folder to materialize candidates in (scopes getById)
+     * @param int[]   $topIds    top folder fileids to crawl, mounts already expanded
+     * @param ?string $userId    User to add the embedded tags of all the files for
+     * @param bool    $pruneTags Delete the user's other embedded tags
      */
-    public function indexFolderIds(Folder $folder, array $topIds, ?string $userId = null): void
+    public function indexFolderIds(Folder $folder, array $topIds, ?string $userId = null, bool $pruneTags = false): void
     {
         if (null !== $userId) {
+            // Get the tags of all files from the stored EXIF data, because files
+            // indexed for other users (e.g. in shared folders) are skipped below
+            $tags = [];
             foreach ($this->indexQuery->getIndexedTagBatches($topIds) as $batch) {
+                $this->ensureContinueOk();
+
                 foreach ($batch as $row) {
-                    $this->ensureContinueOk();
-
-                    $fileId = (int) $row['fileid'];
                     $exif = json_decode($row['exif'] ?? '', true);
-                    if (!\is_array($exif) || [] === $exif) {
-                        continue;
-                    }
-
-                    try {
-                        $file = $folder->getById($fileId)[0] ?? null;
-                        if ($file instanceof File) {
-                            $this->tw->processEmbeddedTags($file, $exif, $userId);
-                        }
-                    } catch (\Exception $e) {
-                        $this->error("Failed to process embedded tags for file {$fileId}: {$e->getMessage()}");
+                    if (\is_array($exif)) {
+                        $tags += TimelineWrite::getEmbeddedTagRows($exif);
                     }
                 }
+            }
+
+            try {
+                $this->tw->syncEmbeddedTags($userId, $tags, $pruneTags);
+            } catch (\Exception $e) {
+                $this->error("Failed to update embedded tags for {$userId}: {$e->getMessage()}");
             }
         }
 
@@ -242,6 +230,44 @@ final class Index
     }
 
     /**
+     * Update a user's embedded tags after they edited a file.
+     *
+     * Indexing the edited file only adds its tags for the file owner. So
+     * update them for the user now, instead of in the next indexing run:
+     * add the file's tags and delete its removed ones, depending on whether
+     * files in the indexed folders (usually including this one) have them.
+     *
+     * @param array $oldExif Stored EXIF data of the file before the edit
+     * @param array $newExif Stored EXIF data of the file after the edit
+     */
+    public function updateEmbeddedTags(IUser $user, array $oldExif, array $newExif): void
+    {
+        $uid = $user->getUID();
+        $tags = TimelineWrite::getEmbeddedTagRows($newExif);
+        $oldTags = TimelineWrite::getEmbeddedTagRows($oldExif);
+        $removed = array_diff_key($oldTags, $tags);
+        if ([] === $removed && [] === array_diff_key($tags, $oldTags)) {
+            return;
+        }
+
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $paths = array_values(array_filter(
+                $this->getIndexPaths($uid),
+                static fn (string $path): bool => $userFolder->nodeExists($path) && $userFolder->get($path) instanceof Folder,
+            ));
+            $root = new TimelineRoot();
+            $this->fsManager->populateRoot($root, true, $user, $paths);
+            $used = $this->indexQuery->getUsedEmbeddedTags($root->getIds(), array_values($tags + $removed));
+
+            $this->tw->syncEmbeddedTags($uid, array_intersect_key($tags, array_flip($used)));
+            $this->tw->deleteEmbeddedTags($uid, array_values(array_diff(array_column($removed, 'path'), $used)));
+        } catch (\Exception $e) {
+            $this->error("Failed to update embedded tags for {$uid}: {$e->getMessage()}");
+        }
+    }
+
+    /**
      * Cleanup all stale entries (passthrough to timeline write).
      */
     public function cleanupStale(): void
@@ -261,6 +287,27 @@ final class Index
         ;
 
         return (int) $query->executeQuery()->fetchOne();
+    }
+
+    /**
+     * Get the paths of the folders to index for a user.
+     *
+     * @return string[]
+     */
+    private function getIndexPaths(string $uid): array
+    {
+        $mode = $this->systemConfig->get('memories.index.mode');
+        if ('1' === $mode || '0' === $mode) { // everything (or nothing)
+            return ['/'];
+        }
+        if ('2' === $mode) { // timeline
+            return $this->systemConfig->getTimelinePaths($uid);
+        }
+        if ('3' === $mode) { // custom
+            return [$this->systemConfig->get('memories.index.path')];
+        }
+
+        throw new \Exception('Invalid index mode');
     }
 
     /**

@@ -17,8 +17,9 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { defineComponent } from 'vue';
+import type { PropType } from 'vue';
 import NcSelect from '@nextcloud/vue/components/NcSelect';
 import axios from '@nextcloud/axios';
 import { API } from '@services/API';
@@ -33,7 +34,7 @@ export default defineComponent({
   props: {
     /** Selected tag values */
     value: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
 
@@ -80,12 +81,14 @@ export default defineComponent({
     },
   },
 
-  emits: ['update:value'],
+  emits: {
+    'update:value': (value: string[]) => true,
+  },
 
   data() {
     return {
-      allTags: [],
-      selectedTags: [],
+      allTags: [] as string[],
+      selectedTags: [] as string[],
       loading: false,
     };
   },
@@ -93,12 +96,12 @@ export default defineComponent({
   watch: {
     value: {
       immediate: true,
-      handler(newValue) {
+      handler(newValue: string[]) {
         this.selectedTags = newValue || [];
       },
     },
 
-    selectedTags(newSelection) {
+    selectedTags(newSelection: string[]) {
       // Don't echo a selection that came from the parent
       if (newSelection !== this.value) {
         this.$emit('update:value', newSelection);
@@ -114,9 +117,8 @@ export default defineComponent({
     async loadTags() {
       this.loading = true;
       try {
-        const response = await axios.get(API.EMBEDDED_TAGS_FLAT());
+        const response = await axios.get<{ tags?: { tag: string; path: string }[] }>(API.EMBEDDED_TAGS_FLAT());
         // Transform tags to simple strings for NcSelect options
-        // Each tag object has: { id, user_id, tag, parent_tag_id, path, level, created_at }
         this.allTags = (response.data.tags || []).map(tagObj =>
           this.showFullPath ? tagObj.path : tagObj.tag
         );
@@ -128,15 +130,15 @@ export default defineComponent({
       }
     },
 
-    keepFocusOnDeselect(event) {
+    keepFocusOnDeselect(event: MouseEvent) {
       // Pressing a tag's remove button would focus it, and the search input
       // losing focus closes the options list. Keep the focus where it is.
-      if (event.target.closest('.vs__deselect')) {
+      if ((event.target as Element).closest('.vs__deselect')) {
         event.preventDefault();
       }
     },
 
-    handleCreate(newTag) {
+    handleCreate(newTag: string) {
       // Add the newly created tag to the options list
       if (!this.allTags.includes(newTag)) {
         this.allTags.push(newTag);

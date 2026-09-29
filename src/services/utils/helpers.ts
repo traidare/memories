@@ -301,7 +301,8 @@ export function getRatingFromExif(exif: any): number {
 export function getTagsFromExif(exif: any): string[][] {
   if (!exif) return [];
   
-  const ensureArray = (v: string | string[] | undefined | null) => v ? (Array.isArray(v) ? v : [v]) : [];
+  // exiftool returns numeric tags such as years as numbers
+  const ensureArray = (v: unknown): string[] => (v ? (Array.isArray(v) ? v : [v]) : []).map(String);
   
   const allTags: string[][] = [];
   const tagSet = new Set<string>();

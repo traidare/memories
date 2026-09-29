@@ -52,6 +52,23 @@ trait TimelineQuerySingleItem
         return $photo;
     }
 
+    /**
+     * Get the stored EXIF data of a file, or an empty array if it is not indexed.
+     */
+    public function getExifById(int $fileId): array
+    {
+        $query = $this->connection->getQueryBuilder();
+        $exif = $query->select('exif')
+            ->from('memories')
+            ->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
+            ->executeQuery()
+            ->fetchOne()
+        ;
+        $exif = \is_string($exif) ? json_decode($exif, true) : null;
+
+        return \is_array($exif) ? $exif : [];
+    }
+
     public function getInfoById(int $id, bool $basic): array
     {
         $qb = $this->connection->getQueryBuilder();

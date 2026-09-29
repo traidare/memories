@@ -59,6 +59,7 @@ final class ImageController extends ApiController
         protected ISystemTagManager $tagManager,
         protected Exif $exif,
         protected SystemConfig $systemConfig,
+        protected Service\Index $index,
         protected Util $util,
     ) {
         parent::__construct(Application::APPNAME, $request);
@@ -325,8 +326,17 @@ final class ImageController extends ApiController
                 }
             }
 
+            // Not on public share pages, whose folders aren't the user's
+            $user = null === $this->request->getParam('token') ? $this->userSession->getUser() : null;
+            $oldExif = null !== $user ? $this->tq->getExifById($id) : [];
+
             // Set the exif data
             $this->exif->setFileExif($file, $raw);
+
+            // Update the user's embedded tags (the file is indexed synchronously)
+            if (null !== $user) {
+                $this->index->updateEmbeddedTags($user, $oldExif, $this->tq->getExifById($id));
+            }
 
             // If rotation changed then update the previews
             if ($raw['Orientation'] ?? false) {

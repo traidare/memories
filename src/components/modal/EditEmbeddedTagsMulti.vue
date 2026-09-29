@@ -166,21 +166,13 @@ export default defineComponent({
   methods: {
     findCommonTags() {
       // Find tags that are common to ALL photos
-      let commonTagsSet: Set<string> | null = null;
-
-      for (const photo of this.photos) {
+      const [first, ...rest] = this.photos.map((photo) => {
         const exif = photo.imageInfo?.exif;
         const tags = exif ? utils.getTagsFromExif(exif) : [];
-        const tagStrings = new Set(tags.map(tagPath => tagPath.join('/')));
+        return new Set(tags.map((tagPath) => tagPath.join('/')));
+      });
 
-        if (commonTagsSet === null) {
-          commonTagsSet = tagStrings;
-        } else {
-          commonTagsSet = new Set([...commonTagsSet].filter(t => tagStrings.has(t)));
-        }
-      }
-
-      this.commonTags = commonTagsSet ? [...commonTagsSet].sort() : [];
+      this.commonTags = first ? [...first].filter((tag) => rest.every((tags) => tags.has(tag))).sort() : [];
     },
 
     result() {

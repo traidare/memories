@@ -59,56 +59,57 @@ final class IndexQuery
      */
     public function getIndexedTagBatches(array $topFolderIds, int $batchSize = 200): \Generator
     {
-        $mimes = $this->mime->getMimeList();
-        if ([] === $topFolderIds || [] === $mimes) {
-            return;
-        }
-
-        /** @var string[] $blocklist */
-        $blocklist = $this->systemConfig->get('memories.index.folder.blocklist');
         $lastFileId = 0;
 
         while (true) {
-            $query = $this->connection->getQueryBuilder();
-            $query->select('f.fileid', 'a.exif')
-                ->from('filecache', 'f')
-                ->innerJoin('f', 'memories', 'a', $query->expr()->eq('f.fileid', 'a.fileid'))
-                ->andWhere($query->expr()->gt('f.fileid', $query->createNamedParameter($lastFileId, IQueryBuilder::PARAM_INT)))
-                ->andWhere($query->expr()->eq('f.mtime', 'a.mtime'))
-                ->andWhere($query->expr()->eq('a.orphan', $query->expr()->literal(0)))
-                ->andWhere($query->expr()->gt('f.size', $query->expr()->literal(0)))
-                ->orderBy('f.fileid')
-                ->setMaxResults($batchSize)
-            ;
-
-            $mimeParam = $query->createNamedParameter($mimes, IQueryBuilder::PARAM_STR_ARRAY);
-            $mimeQuery = $this->connection->getQueryBuilder();
-            $mimeQuery->select('m.id')
-                ->from('mimetypes', 'm')
-                ->where($mimeQuery->expr()->in('m.mimetype', $mimeParam))
-            ;
-            $mimeQuery = SQL::materialize($mimeQuery, 'mm');
-            $query->andWhere($query->expr()->in('f.mimetype', SQL::subquery($query, $mimeQuery)));
-
-            $inFolders = $this->connection->getQueryBuilder();
-            $inFolders->select($inFolders->expr()->literal(1))
-                ->from('cte_folders', 'cte_f')
-                ->where($inFolders->expr()->eq('f.parent', 'cte_f.fileid'))
-            ;
-            $query->andWhere(SQL::exists($query, $inFolders));
-
-            CTEParams::setTopFolderIds($query, $topFolderIds);
-            CTEParams::setIncludeHidden($query, true);
-            CTEParams::setFolderNameBlocklist($query, $blocklist);
-
-            $batch = $this->tq->executeQueryWithCTEs($query)->fetchAll();
+            $batch = $this->fetchIndexedExifBatch($topFolderIds, $lastFileId, $batchSize);
             if ([] === $batch) {
                 return;
             }
 
             $lastFileId = (int) $batch[\count($batch) - 1]['fileid'];
+
             yield $batch;
         }
+    }
+
+    /**
+     * Find which embedded tags are used by indexed files under the given folders.
+     *
+     * @param int[]                                       $topFolderIds top folder fileids
+     * @param list<array{path: string, tag: string, ...}> $tags         tag catalog rows
+     *
+     * @return list<string> paths of the used tags
+     */
+    public function getUsedEmbeddedTags(array $topFolderIds, array $tags): array
+    {
+        $unused = array_column($tags, 'tag', 'path');
+        $lastFileId = 0;
+
+        while ([] !== $unused) {
+            // Only files whose EXIF data contains one of the tag names, as a
+            // string in the stored JSON (with escapes) or maybe as a number
+            $needles = [];
+            foreach ($unused as $tag) {
+                $needles[$tag] = true;
+                $needles[substr((string) json_encode($tag), 1, -1)] = true;
+            }
+
+            $batch = $this->fetchIndexedExifBatch($topFolderIds, $lastFileId, 200, array_map(strval(...), array_keys($needles)));
+            if ([] === $batch) {
+                break;
+            }
+
+            foreach ($batch as $row) {
+                $exif = json_decode((string) $row['exif'], true);
+                if (\is_array($exif)) {
+                    $unused = array_diff_key($unused, TimelineWrite::getEmbeddedTagRows($exif));
+                }
+            }
+            $lastFileId = (int) $batch[\count($batch) - 1]['fileid'];
+        }
+
+        return array_values(array_diff(array_column($tags, 'path'), array_map(strval(...), array_keys($unused))));
     }
 
     /**
@@ -221,6 +222,70 @@ final class IndexQuery
         }
 
         return $batch;
+    }
+
+    /**
+     * Fetch up to $batchSize indexed files after $lastFileId, ordered by fileid.
+     *
+     * @param int[]    $topFolderIds top folder fileids
+     * @param string[] $needles      only files whose stored EXIF JSON contains one of these
+     *
+     * @return array<int, array<string, mixed>> fileid and exif rows
+     */
+    private function fetchIndexedExifBatch(
+        array $topFolderIds,
+        int $lastFileId,
+        int $batchSize,
+        ?array $needles = null,
+    ): array {
+        $mimes = $this->mime->getMimeList();
+        if ([] === $topFolderIds || [] === $mimes || [] === $needles) {
+            return [];
+        }
+
+        /** @var string[] $blocklist */
+        $blocklist = $this->systemConfig->get('memories.index.folder.blocklist');
+
+        $query = $this->connection->getQueryBuilder();
+        $query->select('f.fileid', 'a.exif')
+            ->from('filecache', 'f')
+            ->innerJoin('f', 'memories', 'a', $query->expr()->eq('f.fileid', 'a.fileid'))
+            ->andWhere($query->expr()->gt('f.fileid', $query->createNamedParameter($lastFileId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($query->expr()->gt('f.size', $query->expr()->literal(0)))
+            ->orderBy('f.fileid')
+            ->setMaxResults($batchSize)
+        ;
+
+        if (null !== $needles) {
+            $query->andWhere($query->expr()->orX(...array_map(
+                fn (string $needle): string => $query->expr()->like('a.exif', $query->createNamedParameter(
+                    '%'.$this->connection->escapeLikeParameter($needle).'%',
+                )),
+                $needles,
+            )));
+        }
+
+        $mimeParam = $query->createNamedParameter($mimes, IQueryBuilder::PARAM_STR_ARRAY);
+        $mimeQuery = $this->connection->getQueryBuilder();
+        $mimeQuery->select('m.id')
+            ->from('mimetypes', 'm')
+            ->where($mimeQuery->expr()->in('m.mimetype', $mimeParam))
+        ;
+        $mimeQuery = SQL::materialize($mimeQuery, 'mm');
+        $query->andWhere($query->expr()->in('f.mimetype', SQL::subquery($query, $mimeQuery)));
+
+        $inFolders = $this->connection->getQueryBuilder();
+        $inFolders->select($inFolders->expr()->literal(1))
+            ->from('cte_folders', 'cte_f')
+            ->where($inFolders->expr()->eq('f.parent', 'cte_f.fileid'))
+        ;
+        $query->andWhere(SQL::exists($query, $inFolders));
+
+        CTEParams::setTopFolderIds($query, $topFolderIds);
+        CTEParams::setIncludeHidden($query, true);
+        CTEParams::setFolderNameBlocklist($query, $blocklist);
+
+        return $this->tq->executeQueryWithCTEs($query)->fetchAll();
     }
 
     private function filterNonIndexed(IQueryBuilder $query): IQueryBuilder

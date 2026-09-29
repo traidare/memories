@@ -113,15 +113,16 @@ pkgs.testers.runNixOSTest {
         raw = json.loads(machine.succeed(f"exiftool -j {path}"))[0]
         assert raw["DateTimeOriginal"] == date, raw
         raw_keywords = raw.get("Keywords", [])
-        if isinstance(raw_keywords, str):
+        if not isinstance(raw_keywords, list):
             raw_keywords = [raw_keywords]
-        assert set(keywords) <= set(raw_keywords), raw
+        assert set(keywords) <= {str(keyword) for keyword in raw_keywords}, raw
         return path
 
     shared = [
         create_photo("beach", "red", "2024:06:01 12:00:00", ["Vacation"], "Travel|Beach", 5),
         create_photo("mountain", "green", "2024:06:01 13:00:00", ["Vacation"], "Travel|Mountain", 2),
-        create_photo("travelogue", "blue", "2024:06:02 12:00:00", ["Travelogue"], rating=5),
+        # exiftool returns numeric keywords as numbers
+        create_photo("travelogue", "blue", "2024:06:02 12:00:00", ["Travelogue", "2024"], rating=5),
         create_photo("literal", "yellow", "2024:06:02 13:00:00", ["City, Night", "100%_!"], rating=5),
     ]
     private = create_photo("secret", "purple", "2024:06:02 14:00:00", ["Secret"], rating=5)
@@ -130,7 +131,8 @@ pkgs.testers.runNixOSTest {
     machine.succeed(f"mkdir -p {shlex.quote(shared_dir)}")
     for photo in shared:
         machine.succeed(f"cp {shlex.quote(photo)} {shlex.quote(shared_dir)}")
-    private_dir = f"{datadir}/user1/files"
+    private_dir = f"{datadir}/user1/files/Private"
+    machine.succeed(f"mkdir -p {shlex.quote(private_dir)}")
     machine.succeed(f"cp {shlex.quote(private)} {shlex.quote(private_dir)}")
     machine.succeed(f"chown -R nextcloud:nextcloud {shlex.quote(shared_dir)} {shlex.quote(private_dir)}")
     machine.succeed("nextcloud-occ groupfolders:scan --all", timeout=120)
@@ -187,6 +189,7 @@ pkgs.testers.runNixOSTest {
         check_days(user, ["Travel", "Travelogue"], 0)
         check_days(user, ["Travel"], 1, min_rating=4)
         check_days(user, ["City, Night", "100%_!"], 1)
+        check_days(user, ["2024"], 1)
     check_days("user1", ["Secret"], 1)
     check_days("user2", ["Secret"], 0)
 
@@ -197,8 +200,8 @@ pkgs.testers.runNixOSTest {
         for photo in api(f"/api/days/{day['dayid']}")
     }
 
-    def set_exif(name, raw):
-        jar, token = sessions["user1"]
+    def set_exif(name, raw, user="user1"):
+        jar, token = sessions[user]
         return machine.succeed(
             f"curl -sS -o /dev/null -w '%{{http_code}}' -X PATCH -b {jar} "
             f"-H {shlex.quote('requesttoken: ' + token)} -H 'Content-Type: application/json' "
@@ -211,17 +214,33 @@ pkgs.testers.runNixOSTest {
         path = shlex.quote(f"{shared_dir}/{name}")
         return json.loads(machine.succeed(f"exiftool -j -n {fields} {path}"))[0]
 
-    tags = {
-        "Keywords": ["Vacation", "Travel/Mountain", "Hiking"],
-        "Subject": ["Vacation", "Mountain", "Hiking"],
-        "TagsList": ["Vacation", "Travel/Mountain", "Hiking"],
-        "HierarchicalSubject": ["Vacation", "Travel|Mountain", "Hiking"],
-    }
+    def tag_fields(*tags):
+        # Like getExifFromTags in the frontend
+        return {
+            "Keywords": list(tags),
+            "Subject": [tag.split("/")[-1] for tag in tags],
+            "TagsList": list(tags),
+            "HierarchicalSubject": [tag.replace("/", "|") for tag in tags],
+        }
+
+    def tag_paths(user):
+        return {tag["path"] for tag in api("/api/embedded-tags/flat", user)["tags"]}
+
+    def index(user):
+        machine.succeed(f"nextcloud-occ memories:index --user {user} --skip-cleanup", timeout=180)
+
+    tags = tag_fields("Vacation", "Travel/Mountain", "Hiking")
     assert set_exif("mountain.jpg", {"Rating": 4, **tags}) == "200"
     raw = file_exif("mountain.jpg")
     assert raw["Rating"] == 4 and all(raw[key] == value for key, value in tags.items()), raw
     check_days("user1", ["Hiking"], 1)
     check_days("user1", ["Travel"], 2, min_rating=4)
+
+    # New tags are listed right away for the user who saved them, for others after indexing
+    assert "Hiking" in tag_paths("user1")
+    assert "Hiking" not in tag_paths("user2")
+    index("user2")
+    assert "Hiking" in tag_paths("user2")
 
     assert set_exif("mountain.jpg", {"Rating": None, **{key: [] for key in tags}}) == "200"
     raw = file_exif("mountain.jpg")
@@ -229,5 +248,42 @@ pkgs.testers.runNixOSTest {
     check_days("user1", ["Hiking"], 0)
     check_days("user1", ["Vacation"], 1)
     assert set_exif("mountain.jpg", {"Artist": "x"}) == "400"
+
+    # Removed tags that no other photo has are unlisted the same way
+    removed = {"Hiking", "Travel/Mountain"}
+    assert not removed & tag_paths("user1") and {"Travel", "Vacation"} <= tag_paths("user1")
+    assert removed <= tag_paths("user2")
+    index("user2")
+    assert tag_paths("user2") == tag_paths("user1") - {"Secret"}, tag_paths("user2")
+
+    # Tags of deleted photos are unlisted after indexing
+    machine.succeed(
+        "curl -fsS -X DELETE -u user1:user1password "
+        "http://localhost/remote.php/dav/files/user1/SharedPhotos/literal.jpg"
+    )
+    for user in ("user1", "user2"):
+        index(user)
+        paths = tag_paths(user)
+        assert not {"City, Night", "100%_!"} & paths and "2024" in paths, (user, paths)
+
+    # Tags saved on photos shared by others are listed right away for the owner too,
+    # but unlisted for them after indexing
+    machine.succeed(
+        "curl -fsS -u user1:user1password -H 'OCS-APIRequest: true' "
+        "-d path=/Private -d shareType=0 -d shareWith=user2 -d permissions=3 "
+        "http://localhost/ocs/v2.php/apps/files_sharing/api/v1/shares"
+    )
+    check_days("user2", ["Secret"], 1)
+    assert set_exif("secret.jpg", tag_fields("Secret", "Shared"), "user2") == "200"
+    assert {"Secret", "Shared"} <= tag_paths("user2") and "Shared" in tag_paths("user1")
+    assert set_exif("secret.jpg", tag_fields("Secret"), "user2") == "200"
+    assert "Shared" not in tag_paths("user2") and "Shared" in tag_paths("user1")
+    index("user1")
+    assert "Shared" not in tag_paths("user1")
+
+    # Tags of photos the user can no longer see are unlisted after indexing
+    machine.succeed("nextcloud-occ group:removeuser testgroup user2")
+    index("user2")
+    assert tag_paths("user2") == {"Secret"}, tag_paths("user2")
   '';
 }
