@@ -336,12 +336,15 @@ final class Exif
         $embeddedTags = [];
         $tagSet = [];
 
-        // Helper function to ensure we have an array
+        // Helper function to ensure we have an array of strings
+        // (exiftool returns numeric tags such as years as numbers)
         $ensureArray = function ($value) {
             if (empty($value)) {
                 return [];
             }
-            return is_array($value) ? $value : [$value];
+            $values = \is_array($value) ? $value : [$value];
+
+            return array_map(strval(...), array_filter($values, is_scalar(...)));
         };
 
         // Helper function to add tags with normalization and deduplication
@@ -534,8 +537,9 @@ final class Exif
             // Not our problem
         }
 
-        // Touch the file, triggering a reprocess through the hook
-        $file->touch();
+        // Touch the file, triggering a reprocess through the hook. Change the mtime even
+        // if the file was written within the same second, which it would skip as unchanged.
+        $file->touch(max(time(), $file->getMTime() + 1));
     }
 
     public function getBinaryExifProp(string $path, string $prop): string

@@ -36,7 +36,16 @@ trait TimelineQueryFilters
         foreach ($embeddedTags as $index => $tag) {
             $or = $query->expr()->orX();
 
+            // exiftool returns numeric tags such as years as numbers
+            $number = json_decode($tag);
+            $number = (\is_int($number) || \is_float($number)) && is_finite($number) ? json_encode($number) : null;
+
             foreach ($fields as $field) {
+                if (null !== $number) {
+                    $or->add("JSON_CONTAINS(JSON_EXTRACT(m.exif, '$.{$field}'), :number_{$index}_{$field}) = 1");
+                    $query->setParameter("number_{$index}_{$field}", $number, IQueryBuilder::PARAM_STR);
+                }
+
                 $separators = \in_array($field, ['Keywords', 'HierarchicalSubject'], true) ? ['/', '|'] : ['/'];
                 foreach ($separators as $separator) {
                     $rawTag = '|' === $separator ? str_replace('/', '|', $tag) : $tag;

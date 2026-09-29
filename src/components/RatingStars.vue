@@ -23,14 +23,15 @@
   </NcActions>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from 'vue';
+
 import NcActions from '@nextcloud/vue/components/NcActions';
 import NcActionButton from '@nextcloud/vue/components/NcActionButton';
 import StarIcon from 'vue-material-design-icons/Star.vue';
 import StarOutlineIcon from 'vue-material-design-icons/StarOutline.vue';
-import { translate as t } from '@services/l10n';
 
-export default {
+export default defineComponent({
   name: 'RatingStars',
   
   components: {
@@ -45,7 +46,7 @@ export default {
     rating: {
       type: Number,
       default: 0,
-      validator: (value) => value >= 0 && value <= 5,
+      validator: (value: number) => value >= 0 && value <= 5,
     },
     /** Whether the rating is readonly (display only) */
     readonly: {
@@ -59,17 +60,17 @@ export default {
     },
   },
 
+  emits: {
+    'update:rating': (star: number) => true,
+  },
+
   methods: {
-    setRating(star) {
+    setRating(star: number) {
       if (this.readonly) return;
       this.$emit('update:rating', star);
     },
-
-    t(app, text, vars) {
-      return t('memories', text, vars);
-    },
   },
-};
+});
 </script>
 
 <style lang="scss" scoped>
