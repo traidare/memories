@@ -50,9 +50,6 @@ in
       rm -f appinfo/signature.json
       rm -rf bin-ext/
 
-      substituteInPlace webpack.config.ts \
-        --replace-fail "hints: 'error'," "hints: 'warning',"
-
       sed -i 's/EXIFTOOL_VER = .*/EXIFTOOL_VER = @;/' lib/Service/BinExt.php
       substituteInPlace lib/Service/BinExt.php \
         --replace-fail "EXIFTOOL_VER = @" "EXIFTOOL_VER = '${exiftool.version}'"
@@ -62,7 +59,10 @@ in
 
     installPhase = ''
       mkdir -p $out
-      cp -r ./* $out/
+      cp -r appinfo l10n img js lib templates COPYING README.md CHANGELOG.md exiftest* composer* $out/
+      test ! -e $out/node_modules
+      test ! -e $out/bin-ext
+      test -z "$(find $out -name '*.orig' -print -quit)"
     '';
 
     meta = {
