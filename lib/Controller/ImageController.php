@@ -312,11 +312,12 @@ final class ImageController extends ApiController
                 throw Exceptions::Forbidden("Cannot edit file {$name} (blacklisted type {$mime})");
             }
 
-            // Only tags editable from the UI may be set (see EditMetadataModal)
+            // Only tags editable from the UI may be set (see EditMetadataModal and RatingStars)
             $allowed = [
                 'AllDates', 'Orientation', 'Title', 'Description', 'Label',
                 'Make', 'Model', 'LensModel', 'Copyright', 'GPSLatitude',
                 'GPSLongitude', 'GPSLatitudeRef', 'GPSLongitudeRef', 'GPSCoordinates',
+                'Rating', 'Keywords', 'Subject', 'TagsList', 'HierarchicalSubject',
             ];
             foreach (array_keys($raw) as $key) {
                 if (!\in_array($key, $allowed, true)) {

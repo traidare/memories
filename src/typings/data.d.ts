@@ -184,7 +184,7 @@ declare module '@typings' {
 
     ExifVersion?: string;
     ColorSpace?: number;
-    Rating?: number;
+    Rating?: number | null; // null only for deleting
 
     TagsList?: string[];
     Keywords?: string[];

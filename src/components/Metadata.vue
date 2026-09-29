@@ -153,6 +153,7 @@ import TreeIcon from 'vue-material-design-icons/FileTree.vue';
 
 import * as utils from '@services/utils';
 import * as dav from '@services/dav';
+import { API } from '@services/API';
 
 import type { IAlbum, IFace, IImageInfo, IPhoto, IExif } from '@typings';
 import type { IFolder, INode, IView } from '@nextcloud/files';
@@ -600,14 +601,13 @@ export default defineComponent({
         const raw = this.exif ?? {};
         //optimistically update the exif
         this.exif = { ...raw, ...fields };
-        await axios.patch<IImageInfo>(API.IMAGE_SETEXIF(fileid), { raw: this.exif });
-      }
-      catch (e) {
+        await axios.patch<IImageInfo>(API.IMAGE_SETEXIF(fileid), { raw: fields });
+      } catch (e: any) {
         console.error('Failed to save metadata for', fileid, e);
         if (e.response?.data?.message) {
           showError(e.response.data.message);
         } else {
-          showError(e);
+          showError(this.t('memories', 'Failed to save metadata'));
         }
       } finally {
         this.lock = false;
@@ -616,7 +616,7 @@ export default defineComponent({
     },
 
     updateRating(rating: number) {
-      this.updateExif(this.fileid!, { Rating: rating === this.exif.Rating ? undefined : rating });
+      this.updateExif(this.fileid!, { Rating: rating === this.exif.Rating ? null : rating });
     },
 
     handleFileUpdated({ fileid }: utils.BusEvent['files:file:updated']) {

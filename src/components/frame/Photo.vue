@@ -420,20 +420,21 @@ export default defineComponent({
     async updateRating(rating: number) {
       const exif = this.data.imageInfo?.exif || this.data.exif;
       if (!exif) return;
+      const oldRating = exif.Rating;
       
       try {
         const fileid = this.data.fileid;
         const currentRating = exif.Rating || 0;
-        const newRating = rating === currentRating ? undefined : rating;
+        const newRating = rating === currentRating ? null : rating;
         
         // Optimistically update the UI
-        if (newRating === undefined) {
+        if (newRating === null) {
           delete exif.Rating;
         } else {
           exif.Rating = newRating;
         }
         
-        // Update the server
+        // Update the server (null deletes the rating)
         await axios.patch(API.IMAGE_SETEXIF(fileid), { 
           raw: { Rating: newRating }
         });
@@ -441,7 +442,7 @@ export default defineComponent({
         // Emit file updated event
         utils.bus.emit('files:file:updated', { fileid });
         
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed to update rating for', this.data.fileid, e);
         if (e.response?.data?.message) {
           showError(e.response.data.message);
@@ -450,7 +451,7 @@ export default defineComponent({
         }
         
         // Revert the optimistic update on error
-        this.$forceUpdate();
+        exif.Rating = oldRating;
       }
     },
   },

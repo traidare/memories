@@ -189,5 +189,45 @@ pkgs.testers.runNixOSTest {
         check_days(user, ["City, Night", "100%_!"], 1)
     check_days("user1", ["Secret"], 1)
     check_days("user2", ["Secret"], 0)
+
+    # Ratings and embedded tags can be saved, and null or empty lists delete them
+    fileids = {
+        photo["basename"]: photo["fileid"]
+        for day in api("/api/days")
+        for photo in api(f"/api/days/{day['dayid']}")
+    }
+
+    def set_exif(name, raw):
+        jar, token = sessions["user1"]
+        return machine.succeed(
+            f"curl -sS -o /dev/null -w '%{{http_code}}' -X PATCH -b {jar} "
+            f"-H {shlex.quote('requesttoken: ' + token)} -H 'Content-Type: application/json' "
+            f"-d {shlex.quote(json.dumps({'raw': raw}))} "
+            f"http://localhost/apps/memories/api/image/set-exif/{fileids[name]}"
+        ).strip()
+
+    def file_exif(name):
+        fields = "-Rating -Keywords -Subject -TagsList -HierarchicalSubject"
+        path = shlex.quote(f"{shared_dir}/{name}")
+        return json.loads(machine.succeed(f"exiftool -j -n {fields} {path}"))[0]
+
+    tags = {
+        "Keywords": ["Vacation", "Travel/Mountain", "Hiking"],
+        "Subject": ["Vacation", "Mountain", "Hiking"],
+        "TagsList": ["Vacation", "Travel/Mountain", "Hiking"],
+        "HierarchicalSubject": ["Vacation", "Travel|Mountain", "Hiking"],
+    }
+    assert set_exif("mountain.jpg", {"Rating": 4, **tags}) == "200"
+    raw = file_exif("mountain.jpg")
+    assert raw["Rating"] == 4 and all(raw[key] == value for key, value in tags.items()), raw
+    check_days("user1", ["Hiking"], 1)
+    check_days("user1", ["Travel"], 2, min_rating=4)
+
+    assert set_exif("mountain.jpg", {"Rating": None, **{key: [] for key in tags}}) == "200"
+    raw = file_exif("mountain.jpg")
+    assert raw.keys() == {"SourceFile"}, raw
+    check_days("user1", ["Hiking"], 0)
+    check_days("user1", ["Vacation"], 1)
+    assert set_exif("mountain.jpg", {"Artist": "x"}) == "400"
   '';
 }
