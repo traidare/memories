@@ -467,12 +467,14 @@ final class Exif
      * Set exif data using raw json.
      *
      * @param string               $path to local file
-     * @param array<string, mixed> $data exif data
+     * @param array<string, mixed> $data exif data, null deletes a tag
      *
      * @throws \Exception on failure
      */
     public function setExif(string $path, array $data): void
     {
+        // exiftool writes null as the string "null", but deletes tags set to an empty list
+        $data = array_map(static fn ($value) => $value ?? [], $data);
         $data['SourceFile'] = $path;
         $raw = json_encode([$data], JSON_UNESCAPED_UNICODE);
         $cmd = array_merge($this->getExiftool(), [

@@ -88,9 +88,8 @@
       </div>
       
       <!-- Metadata overlay -->
-      <div class="metadata-overlay" v-if="showMetadataOverlay">
-        <RatingTags 
-          v-if="showRatingTags"
+      <div class="metadata-overlay" v-if="showRatingTags">
+        <RatingTags
           :rating="currentRating"
           :tags="currentTags"
           :compact="true"
@@ -272,17 +271,15 @@ export default defineComponent({
 
     /** Whether to show the RatingTags component */
     showRatingTags(): boolean {
-      return this.config.metadata_in_gallery && (this.currentRating > 0 || this.currentTags.length > 0);
+      return (
+        this.config.metadata_in_gallery &&
+        (this.currentTags.length > 0 || (!this.config.enable_exif_photo_rating_in_gallery && this.currentRating > 0))
+      );
     },
 
     /** Whether to show the interactive rating overlay */
     showInteractiveRating(): boolean {
       return this.config.enable_exif_photo_rating_in_gallery && (!!this.data.exif || !!this.data.imageInfo?.exif);
-    },
-
-    /** Whether to show the metadata overlay container */
-    showMetadataOverlay(): boolean {
-      return this.showRatingTags || this.showInteractiveRating;
     },
   },
 
@@ -420,20 +417,21 @@ export default defineComponent({
     async updateRating(rating: number) {
       const exif = this.data.imageInfo?.exif || this.data.exif;
       if (!exif) return;
+      const oldRating = exif.Rating;
       
       try {
         const fileid = this.data.fileid;
         const currentRating = exif.Rating || 0;
-        const newRating = rating === currentRating ? undefined : rating;
+        const newRating = rating === currentRating ? null : rating;
         
         // Optimistically update the UI
-        if (newRating === undefined) {
+        if (newRating === null) {
           delete exif.Rating;
         } else {
           exif.Rating = newRating;
         }
         
-        // Update the server
+        // Update the server (null deletes the rating)
         await axios.patch(API.IMAGE_SETEXIF(fileid), { 
           raw: { Rating: newRating }
         });
@@ -441,7 +439,7 @@ export default defineComponent({
         // Emit file updated event
         utils.bus.emit('files:file:updated', { fileid });
         
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed to update rating for', this.data.fileid, e);
         if (e.response?.data?.message) {
           showError(e.response.data.message);
@@ -450,7 +448,7 @@ export default defineComponent({
         }
         
         // Revert the optimistic update on error
-        this.$forceUpdate();
+        exif.Rating = oldRating;
       }
     },
   },

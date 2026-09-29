@@ -7,7 +7,7 @@ import { getPlayableVideoCodecsSync } from './video';
 import { API } from '@services/API';
 import { has as hasNativeX, NAPI } from '@native';
 
-import type { IConfig, IImageInfo, IPhoto } from '@typings';
+import type { IConfig, IExif, IImageInfo, IPhoto } from '@typings';
 
 /**
  * Get the current user UID
@@ -341,6 +341,31 @@ export function getTagsFromExif(exif: any): string[][] {
 
   // Filter out tags that are components of hierarchical tags
   return filterComponentTags(allTags);
+}
+
+/**
+ * Convert tags to EXIF data, the reverse of getTagsFromExif
+ * @param tags Tag paths separated by '/' or '|'
+ * @returns All four tag fields, which are deleted if there are no tags
+ */
+export function getExifFromTags(
+  tags: string[],
+): Pick<IExif, 'Keywords' | 'Subject' | 'TagsList' | 'HierarchicalSubject'> {
+  // Return the tags in all four EXIF fields for maximum compatibility
+  const tagsList = tags.map((tag) => tag.replace(/\|/g, '/'));
+  const hierarchicalSubject = tags.map((tag) => tag.replace(/\//g, '|'));
+  const keywords = tags.map((tag) => tag.replace(/\|/g, '/'));
+  const subject = tags.map((tag) => {
+    const parts = tag.split(/[\/|]/);
+    return parts[parts.length - 1];
+  });
+
+  return {
+    Keywords: keywords,
+    Subject: subject,
+    TagsList: tagsList,
+    HierarchicalSubject: hierarchicalSubject,
+  };
 }
 
 /**

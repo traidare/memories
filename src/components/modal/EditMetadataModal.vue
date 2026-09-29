@@ -268,8 +268,10 @@ export default defineComponent({
             newTags = embeddedTagsMultiOp.tags;
           }
 
-          // Convert to EXIF fields
-          Object.assign(raw, this.tagsToExifFields(newTags));
+          // Convert to EXIF fields, unless the tags of this photo didn't change
+          if (JSON.stringify([...newTags].sort()) !== JSON.stringify([...currentTags].sort())) {
+            Object.assign(raw, utils.getExifFromTags(newTags));
+          }
         } else if (embeddedTagsResult && !(embeddedTagsResult as any).multiPhotoOperation) {
           // Single photo operation: use the result directly
           Object.assign(raw, embeddedTagsResult);
@@ -398,33 +400,6 @@ export default defineComponent({
       }
 
       return updatable;
-    },
-
-    tagsToExifFields(tags: string[]) {
-      // Convert tag strings to all four EXIF fields
-      if (tags.length === 0) {
-        return {
-          Keywords: undefined,
-          Subject: undefined,
-          TagsList: undefined,
-          HierarchicalSubject: undefined,
-        };
-      }
-
-      const tagsList = tags.map(tag => tag.replace(/\|/g, '/'));
-      const hierarchicalSubject = tags.map(tag => tag.replace(/\//g, '|'));
-      const keywords = tags.map(tag => tag.replace(/\|/g, '/'));
-      const subject = tags.map(tag => {
-        const parts = tag.split(/[\/|]/);
-        return parts[parts.length - 1];
-      });
-
-      return {
-        Keywords: keywords,
-        Subject: subject,
-        TagsList: tagsList,
-        HierarchicalSubject: hierarchicalSubject,
-      };
     },
   },
 });

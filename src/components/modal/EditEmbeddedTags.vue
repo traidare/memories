@@ -92,7 +92,7 @@ export default defineComponent({
         return null;
       }
 
-      return this.tagsToExifFields(this.tagSelection);
+      return utils.getExifFromTags(this.tagSelection);
     },
 
     resultMulti() {
@@ -105,34 +105,6 @@ export default defineComponent({
 
       return {
         multiPhotoOperation: operation,
-      };
-    },
-
-    tagsToExifFields(tags: string[]) {
-      // If tags are being cleared, set undefined for all fields
-      if (tags.length === 0) {
-        return {
-          Keywords: undefined,
-          Subject: undefined,
-          TagsList: undefined,
-          HierarchicalSubject: undefined,
-        };
-      }
-
-      // Return the tags in all four EXIF fields for maximum compatibility
-      const tagsList = tags.map(tag => tag.replace(/\|/g, '/'));
-      const hierarchicalSubject = tags.map(tag => tag.replace(/\//g, '|'));
-      const keywords = tags.map(tag => tag.replace(/\|/g, '/'));
-      const subject = tags.map(tag => {
-        const parts = tag.split(/[\/|]/);
-        return parts[parts.length - 1];
-      });
-
-      return {
-        Keywords: keywords,
-        Subject: subject,
-        TagsList: tagsList,
-        HierarchicalSubject: hierarchicalSubject,
       };
     },
   },
