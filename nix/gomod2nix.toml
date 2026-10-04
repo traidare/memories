@@ -1,0 +1,54 @@
+schema = 3
+
+[mod]
+  [mod.'github.com/gabriel-vasile/mimetype']
+    version = 'v1.4.15'
+    hash = 'sha256-MSmdWIAtF32qz02SDQx+cuj8EZCFUemTCAQPFq42JN0='
+
+  [mod.'github.com/go-playground/locales']
+    version = 'v0.14.1'
+    hash = 'sha256-BMJGAexq96waZn60DJXZfByRHb8zA/JP/i6f/YrW9oQ='
+
+  [mod.'github.com/go-playground/universal-translator']
+    version = 'v0.18.1'
+    hash = 'sha256-2/B2qP51zfiY+k8G0w0D03KXUc7XpWj6wKY7NjNP/9E='
+
+  [mod.'github.com/go-playground/validator/v10']
+    version = 'v10.30.4'
+    hash = 'sha256-8lruOQIk6IS5ti60Y/YfM1Q3rp4MFp8oxve+98Gtwg8='
+
+  [mod.'github.com/grafov/m3u8']
+    version = 'v0.12.1'
+    hash = 'sha256-A+SYQvX5zgMNg1jo86FjH9PHEFi7Zvzu9M8/g+k0X2M='
+
+  [mod.'github.com/leodido/go-urn']
+    version = 'v1.5.0'
+    hash = 'sha256-CEeM2l10p4WK0GoRxIzKcx+6hn1eQj1d3MyyY35XNh0='
+
+  [mod.'github.com/stretchr/testify']
+    version = 'v1.12.1'
+    hash = 'sha256-9MTDdVjZMh1MJ5EH3HmAFrm24YqZayeMBgKwtaURZCc='
+
+  [mod.'github.com/vansante/go-ffprobe']
+    version = 'v1.1.0'
+    hash = 'sha256-JFkgHuekVow13bmExDDZrvhN7Lf2cEdYVafyvetAvOA='
+
+  [mod.'go.yaml.in/yaml/v3']
+    version = 'v3.0.5'
+    hash = 'sha256-ygho+GU5kE7vPMx+dZYyNfCaeMjNxj66XmrcVf3afFE='
+
+  [mod.'golang.org/x/crypto']
+    version = 'v0.55.0'
+    hash = 'sha256-99uV/ESeqhaDEwqbXxDpePuwzO0JoEHGhqZXZVHq/H4='
+
+  [mod.'golang.org/x/sync']
+    version = 'v0.23.0'
+    hash = 'sha256-nF8YZFVC+TitjkderlqgGwJkuMqJCxI+fIElVLjBT2M='
+
+  [mod.'golang.org/x/sys']
+    version = 'v0.47.0'
+    hash = 'sha256-TpbRyWWqHjddP6QzUgAbaLd2EE0S+GYNRUIDJd18r98='
+
+  [mod.'golang.org/x/text']
+    version = 'v0.41.0'
+    hash = 'sha256-22nHcolG87qSPahT2Ey8S5iGlCLAglE9ObYXO6XZ3ZY='
