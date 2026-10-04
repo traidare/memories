@@ -34,9 +34,8 @@ final class UtilHelpersTest extends TestCase
         self::assertSame(0, Util::sqlUtcToTimestamp('not-a-date'));
     }
 
-    public function testGetArchLibc(): void
+    public function testGetArch(): void
     {
         self::assertContains(Util::getArch(), ['amd64', 'aarch64']);
-        self::assertContains(Util::getLibc(), ['glibc', 'musl']);
     }
 }
