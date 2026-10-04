@@ -2,28 +2,30 @@
 
 declare(strict_types=1);
 
-/**
+/*
  * SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 namespace OCA\Memories\Migration;
 
-use Closure;
 use OCP\DB\ISchemaWrapper;
+use OCP\DB\Types;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
-use OCP\DB\Types;
 
-class Version801000Date20250818060711 extends SimpleMigrationStep {
+final class Version801000Date20250818060711 extends SimpleMigrationStep
+{
     /**
      * @param \Closure(): ISchemaWrapper $schemaClosure
      */
+    #[\Override]
     public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {}
 
     /**
      * @param \Closure(): ISchemaWrapper $schemaClosure
      */
+    #[\Override]
     public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper
     {
         /** @var ISchemaWrapper $schema */
@@ -66,8 +68,11 @@ class Version801000Date20250818060711 extends SimpleMigrationStep {
             // Add indexes
             $table->addIndex(['user_id', 'tag'], 'memories_et_user_tag_idx', [], ['lengths' => [null, 255]]);
 
-            // Add unique constraint to ensure tags are unique per user
-            $table->addUniqueIndex(['user_id', 'path'], 'memories_et_user_path_unique', [], ['lengths' => [null, 768]]);
+            // Add unique constraint to ensure tags are unique per user. MySQL limits
+            // keys to 3072 bytes, which leaves 704 characters of the path after the
+            // user ID (4 bytes per character). The prefix doesn't apply to installs
+            // that ran this before, which have the unique index on the full path.
+            $table->addUniqueIndex(['user_id', 'path'], 'memories_et_user_path_unique', ['lengths' => [null, 704]]);
 
             // Add index on parent_tag_id for better performance
             $table->addIndex(['parent_tag_id'], 'memories_et_parent_id_idx');
@@ -77,24 +82,14 @@ class Version801000Date20250818060711 extends SimpleMigrationStep {
         if ($schema->hasTable('memories_embedded_tags')) {
             $table = $schema->getTable('memories_embedded_tags');
 
-            // Check if the foreign key already exists
-            $foreignKeys = $table->getForeignKeys();
-            $foreignKeyExists = false;
-
-            foreach ($foreignKeys as $foreignKey) {
-                if ($foreignKey->getLocalColumns() === ['parent_tag_id']) {
-                    $foreignKeyExists = true;
-                    break;
-                }
-            }
-
             // Add the foreign key if it doesn't exist
-            if (!$foreignKeyExists) {
+            if (!$table->hasForeignKey('memories_et_parent_fk')) {
                 $table->addForeignKeyConstraint(
                     $schema->getTable('memories_embedded_tags'), // target table (self-reference)
                     ['parent_tag_id'],        // local columns
                     ['id'],                   // target columns
-                    ['onDelete' => 'SET NULL'] // when parent is deleted, set children's parent_tag_id to NULL
+                    ['onDelete' => 'SET NULL'], // when parent is deleted, set children's parent_tag_id to NULL
+                    'memories_et_parent_fk',
                 );
             }
         }
@@ -105,7 +100,6 @@ class Version801000Date20250818060711 extends SimpleMigrationStep {
     /**
      * @param \Closure(): ISchemaWrapper $schemaClosure
      */
+    #[\Override]
     public function postSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {}
-
-
 }
