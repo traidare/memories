@@ -300,10 +300,10 @@ export function getRatingFromExif(exif: any): number {
  */
 export function getTagsFromExif(exif: any): string[][] {
   if (!exif) return [];
-  
+
   // exiftool returns numeric tags such as years as numbers
   const ensureArray = (v: unknown): string[] => (v ? (Array.isArray(v) ? v : [v]) : []).map(String);
-  
+
   const allTags: string[][] = [];
   const tagSet = new Set<string>();
 
@@ -331,8 +331,7 @@ export function getTagsFromExif(exif: any): string[][] {
   // Extract from Keywords (as individual tags)
   const keywords = ensureArray(exif.Keywords).map((tag) => {
     // Keywords might contain paths with '/' or '|' separator
-    return tag.includes('/') ? tag.split('/') :
-           tag.includes('|') ? tag.split('|') : [tag];
+    return tag.includes('/') ? tag.split('/') : tag.includes('|') ? tag.split('|') : [tag];
   });
   addTags(keywords);
 
@@ -382,7 +381,7 @@ function filterComponentTags(tags: string[][]): string[][] {
   const hierarchicalTagParts = new Set<string>(); // All parts from hierarchical tags
 
   for (const tag of tags) {
-    const normalized = tag.map(part => part.toLowerCase());
+    const normalized = tag.map((part) => part.toLowerCase());
 
     if (normalized.length === 1) {
       // Single-part tag
@@ -405,7 +404,7 @@ function filterComponentTags(tags: string[][]): string[][] {
   for (const flatTag of flatTags) {
     if (!hierarchicalTagParts.has(flatTag)) {
       // Find the original case from the input tags
-      const originalTag = tags.find(t => t.length === 1 && t[0].toLowerCase() === flatTag);
+      const originalTag = tags.find((t) => t.length === 1 && t[0].toLowerCase() === flatTag);
       if (originalTag) {
         result.push(originalTag);
       }

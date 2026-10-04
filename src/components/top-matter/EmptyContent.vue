@@ -55,7 +55,6 @@ export default defineComponent({
     emptyViewDescription(): string {
       return strings.emptyDescription(this.$route.name?.toString() ?? '');
     },
-
   },
 
   methods: {

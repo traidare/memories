@@ -2,27 +2,21 @@
   <div class="rating-tags" :class="{ compact, slideshow }">
     <!-- Rating -->
     <div v-if="rating && rating > 0 && !hideStars" class="rating-section">
-      <RatingStars 
-        :rating="rating" 
-        :size="starSize" 
-        readonly 
-      />
+      <RatingStars :rating="rating" :size="starSize" readonly />
     </div>
-    
+
     <!-- Tags -->
     <div v-if="tags.length > 0" class="tags-section">
       <div class="tags-container">
-        <NcChip 
+        <NcChip
           v-for="(tag, idx) in displayTags"
           :key="`tag-${idx}`"
-          :text="truncateTagPath(tag.join(' → '))" 
-          no-close 
+          :text="truncateTagPath(tag.join(' → '))"
+          no-close
           :size="compact ? 'small' : 'medium'"
         />
-        
-        <span v-if="hasMoreTags" class="more-tags">
-          +{{ tags.length - maxTags }}
-        </span>
+
+        <span v-if="hasMoreTags" class="more-tags"> +{{ tags.length - maxTags }} </span>
       </div>
     </div>
   </div>
@@ -37,7 +31,7 @@ import NcChip from '@nextcloud/vue/components/NcChip';
 
 export default defineComponent({
   name: 'RatingTags',
-  
+
   components: {
     RatingStars,
     NcChip,
@@ -49,31 +43,31 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    
+
     /** Array of tag arrays (hierarchical tags) */
     tags: {
       type: Array as PropType<string[][]>,
       default: () => [],
     },
-    
+
     /** Compact display mode */
     compact: {
       type: Boolean,
       default: false,
     },
-    
+
     /** Slideshow mode styling */
     slideshow: {
       type: Boolean,
       default: false,
     },
-    
+
     /** Maximum number of tags to show before truncating */
     maxTags: {
       type: Number,
       default: 5,
     },
-    
+
     /** Hide the rating stars (show only tags) */
     hideStars: {
       type: Boolean,
@@ -88,12 +82,12 @@ export default defineComponent({
       if (this.slideshow) return 18;
       return 20;
     },
-    
+
     /** Tags to display (limited by maxTags) */
     displayTags(): string[][] {
       return this.tags.slice(0, this.maxTags);
     },
-    
+
     /** Whether there are more tags than displayed */
     hasMoreTags(): boolean {
       return this.tags.length > this.maxTags;
@@ -109,7 +103,7 @@ export default defineComponent({
       if (path.length <= 200) {
         return path;
       }
-      
+
       const truncated = path.substring(path.length - 150);
       return '…' + truncated;
     },
@@ -131,7 +125,7 @@ export default defineComponent({
 
   &.slideshow {
     color: white;
-    
+
     .tags-section {
       :deep .chip {
         background-color: rgba(255, 255, 255, 0.2);
@@ -139,7 +133,7 @@ export default defineComponent({
         backdrop-filter: blur(4px);
       }
     }
-    
+
     .more-tags {
       color: rgba(255, 255, 255, 0.8);
     }
@@ -176,8 +170,6 @@ export default defineComponent({
   white-space: nowrap;
 }
 
-
-
 // Responsive adjustments
 @media (max-width: 768px) {
   .rating-tags {
@@ -186,7 +178,7 @@ export default defineComponent({
       font-size: 0.9em;
     }
   }
-  
+
   .tags-container {
     gap: 2px;
   }

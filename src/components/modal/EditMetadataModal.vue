@@ -253,7 +253,7 @@ export default defineComponent({
         if (embeddedTagsMultiOp) {
           // Multi-photo operation: add, remove, or override
           const currentExif = p.imageInfo?.exif;
-          const currentTags = currentExif ? utils.getTagsFromExif(currentExif).map(t => t.join('/')) : [];
+          const currentTags = currentExif ? utils.getTagsFromExif(currentExif).map((t) => t.join('/')) : [];
           let newTags: string[] = [];
 
           if (embeddedTagsMultiOp.mode === 'add') {
@@ -262,7 +262,7 @@ export default defineComponent({
           } else if (embeddedTagsMultiOp.mode === 'remove') {
             // Remove tags: filter out specified tags
             const tagsToRemove = new Set(embeddedTagsMultiOp.tags);
-            newTags = currentTags.filter(t => !tagsToRemove.has(t));
+            newTags = currentTags.filter((t) => !tagsToRemove.has(t));
           } else if (embeddedTagsMultiOp.mode === 'override') {
             // Override: replace all tags
             newTags = embeddedTagsMultiOp.tags;

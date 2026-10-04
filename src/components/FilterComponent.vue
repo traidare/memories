@@ -7,12 +7,8 @@
           {{ t('memories', 'Minimum Rating') }}
         </label>
         <div class="rating-filter">
-          <RatingStars 
-            :rating="filters.minRating"
-            :size="20"
-            @update:rating="onRatingChange"
-          />
-          <NcButton 
+          <RatingStars :rating="filters.minRating" :size="20" @update:rating="onRatingChange" />
+          <NcButton
             v-if="filters.minRating > 0"
             variant="tertiary-no-background"
             :aria-label="t('memories', 'Clear rating filter')"
@@ -43,11 +39,7 @@
 
       <!-- Filter Actions -->
       <div class="filter-actions">
-        <NcButton
-          variant="secondary"
-          @click="clearAllFilters"
-          :disabled="!hasActiveFilters"
-        >
+        <NcButton variant="secondary" @click="clearAllFilters" :disabled="!hasActiveFilters">
           {{ t('memories', 'Clear All') }}
         </NcButton>
       </div>
@@ -69,7 +61,7 @@ import EmbeddedTagSelector from './EmbeddedTagSelector.vue';
 
 export default defineComponent({
   name: 'FilterComponent',
-  
+
   components: {
     NcButton,
     RatingStars,
@@ -86,10 +78,11 @@ export default defineComponent({
     /** Initial filter values */
     initialFilters: {
       type: Object as PropType<IFilters>,
-      default: () => ({
-        minRating: 0,
-        embeddedTags: [],
-      } as IFilters),
+      default: () =>
+        ({
+          minRating: 0,
+          embeddedTags: [],
+        }) as IFilters,
     },
   },
 

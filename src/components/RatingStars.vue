@@ -10,14 +10,8 @@
       :disabled="readonly"
     >
       <template #icon>
-        <StarIcon 
-          v-if="star <= rating"
-          :size="size" 
-        />
-        <StarOutlineIcon 
-          v-else
-          :size="size" 
-        />
+        <StarIcon v-if="star <= rating" :size="size" />
+        <StarOutlineIcon v-else :size="size" />
       </template>
     </NcActionButton>
   </NcActions>
@@ -33,7 +27,7 @@ import StarOutlineIcon from 'vue-material-design-icons/StarOutline.vue';
 
 export default defineComponent({
   name: 'RatingStars',
-  
+
   components: {
     NcActions,
     NcActionButton,
@@ -82,21 +76,21 @@ export default defineComponent({
 
   &.readonly {
     pointer-events: none;
-    
+
     :deep .button-vue {
       cursor: default;
       background-color: transparent !important;
-      
+
       &:hover {
         background-color: transparent !important;
       }
     }
-    
+
     // Filled stars: yellow/warning color
     :deep .material-design-icon.star-icon {
       color: var(--color-warning);
     }
-    
+
     // Outline stars: inherit color (white on dark, dark on light)
     :deep .material-design-icon.star-outline-icon {
       color: currentColor;
@@ -107,7 +101,7 @@ export default defineComponent({
   &.interactive {
     :deep .button-vue {
       transition: color 0.2s ease;
-      
+
       &:hover {
         background-color: var(--color-background-hover) !important;
       }
@@ -118,13 +112,13 @@ export default defineComponent({
     :deep .material-design-icon.star-icon {
       color: var(--color-warning);
     }
-    
+
     // Outline stars: inherit color (adapts to theme/context)
     :deep .material-design-icon.star-outline-icon {
       color: currentColor;
       opacity: 0.7;
     }
-    
+
     // Hover state: when hovering the parent container, show hover preview
     &:hover {
       // During hover, show all stars in preview mode
@@ -135,7 +129,7 @@ export default defineComponent({
           opacity: 0.7;
         }
       }
-      
+
       // Hovered star and following siblings (visually to the left) become filled/yellow
       :deep .button-vue:hover,
       :deep .button-vue:hover ~ .button-vue {
@@ -156,7 +150,7 @@ export default defineComponent({
     padding: 4px;
     margin: 0;
     border-radius: var(--border-radius);
-    
+
     .button-vue__wrapper {
       padding: 0;
     }

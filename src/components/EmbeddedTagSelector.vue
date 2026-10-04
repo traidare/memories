@@ -119,9 +119,7 @@ export default defineComponent({
       try {
         const response = await axios.get<{ tags?: { tag: string; path: string }[] }>(API.EMBEDDED_TAGS_FLAT());
         // Transform tags to simple strings for NcSelect options
-        this.allTags = (response.data.tags || []).map(tagObj =>
-          this.showFullPath ? tagObj.path : tagObj.tag
-        );
+        this.allTags = (response.data.tags || []).map((tagObj) => (this.showFullPath ? tagObj.path : tagObj.tag));
       } catch (error) {
         console.error('Failed to load embedded tags:', error);
         this.allTags = [];

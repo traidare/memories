@@ -258,7 +258,7 @@ final class DaysController extends ApiController
 
     private function getMinRating(): int
     {
-        return (int) $this->request->getParam('minRating') ?? 0;
+        return (int) $this->request->getParam('minRating');
     }
 
     /** @return list<string> */

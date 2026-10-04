@@ -27,11 +27,11 @@ use OCA\Memories\Util;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
-class EmbeddedTagsQuery
+final class EmbeddedTagsQuery
 {
     use EmbeddedTagsQueryFilters;
 
-    public const TAGS_SELECT = [
+    public const array TAGS_SELECT = [
         'id', 'user_id', 'tag', 'parent_tag_id',
         'path', 'level', 'created_at',
     ];

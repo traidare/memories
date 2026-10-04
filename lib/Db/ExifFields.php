@@ -52,7 +52,6 @@ final class ExifFields
         'Subject' => true,
         'HierarchicalSubject' => true,
 
-
         // GPS info
         'GPSLatitude' => true,
         'GPSLongitude' => true,

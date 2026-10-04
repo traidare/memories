@@ -14,12 +14,7 @@
     </div>
 
     <!-- Multiple photos editing -->
-    <EditEmbeddedTagsMulti
-      v-else
-      ref="editEmbeddedTagsMulti"
-      :photos="photos"
-      :disabled="disabled"
-    />
+    <EditEmbeddedTagsMulti v-else ref="editEmbeddedTagsMulti" :photos="photos" :disabled="disabled" />
   </div>
 </template>
 
@@ -68,7 +63,7 @@ export default defineComponent({
 
         if (exif) {
           const tags = utils.getTagsFromExif(exif);
-          this.tagSelection = tags.map(tagPath => tagPath.join('/'));
+          this.tagSelection = tags.map((tagPath) => tagPath.join('/'));
         }
       }
     },
@@ -85,7 +80,7 @@ export default defineComponent({
       // Single photo: simple replace
       const photo = this.photos[0];
       const exif = photo.imageInfo?.exif;
-      const originalTags = exif ? utils.getTagsFromExif(exif).map(t => t.join('/')) : [];
+      const originalTags = exif ? utils.getTagsFromExif(exif).map((t) => t.join('/')) : [];
 
       // Check if changed
       if (JSON.stringify(this.tagSelection.sort()) === JSON.stringify(originalTags.sort())) {

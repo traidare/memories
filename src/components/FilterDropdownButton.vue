@@ -15,10 +15,7 @@
         </NcButton>
       </template>
       <template #default>
-        <FilterComponent
-          :disabled="disabled"
-          :initial-filters="currentFilters"
-        />
+        <FilterComponent :disabled="disabled" :initial-filters="currentFilters" />
       </template>
     </NcPopover>
   </div>

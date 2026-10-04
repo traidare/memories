@@ -18,14 +18,10 @@
       >
         <CheckCircleIcon :size="18" />
       </div>
-      
+
       <!-- Interactive rating overlay -->
       <div class="interactive-rating" v-if="showInteractiveRating">
-        <RatingStars 
-          :rating="currentRating"
-          :size="14"
-          @update:rating="updateRating"
-        />
+        <RatingStars :rating="currentRating" :size="14" @update:rating="updateRating" />
       </div>
 
       <div class="flag top-right">
@@ -86,7 +82,7 @@
         ></video>
         <div class="overlay top-left fill-block"></div>
       </div>
-      
+
       <!-- Metadata overlay -->
       <div class="metadata-overlay" v-if="showRatingTags">
         <RatingTags
@@ -97,7 +93,6 @@
           :hide-stars="config.enable_exif_photo_rating_in_gallery"
         />
       </div>
-      
     </div>
   </div>
 </template>
@@ -128,9 +123,9 @@ import errorsvg from '@assets/error.svg';
 
 export default defineComponent({
   name: 'Photo',
-  
+
   mixins: [UserConfig],
-  
+
   components: {
     RatingTags,
     RatingStars,
@@ -418,27 +413,26 @@ export default defineComponent({
       const exif = this.data.imageInfo?.exif || this.data.exif;
       if (!exif) return;
       const oldRating = exif.Rating;
-      
+
       try {
         const fileid = this.data.fileid;
         const currentRating = exif.Rating || 0;
         const newRating = rating === currentRating ? null : rating;
-        
+
         // Optimistically update the UI
         if (newRating === null) {
           delete exif.Rating;
         } else {
           exif.Rating = newRating;
         }
-        
+
         // Update the server (null deletes the rating)
-        await axios.patch(API.IMAGE_SETEXIF(fileid), { 
-          raw: { Rating: newRating }
+        await axios.patch(API.IMAGE_SETEXIF(fileid), {
+          raw: { Rating: newRating },
         });
-        
+
         // Emit file updated event
         utils.bus.emit('files:file:updated', { fileid });
-        
       } catch (e: any) {
         console.error('Failed to update rating for', this.data.fileid, e);
         if (e.response?.data?.message) {
@@ -446,7 +440,7 @@ export default defineComponent({
         } else {
           showError(this.t('memories', 'Failed to update rating'));
         }
-        
+
         // Revert the optimistic update on error
         exif.Rating = oldRating;
       }
@@ -669,7 +663,7 @@ div.img-outer {
   z-index: 50;
   pointer-events: none;
   background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 100%);
-  
+
   // Hide on hover to prevent interference with selection
   @media (hover: hover) and (pointer: fine) {
     .p-outer:hover > .img-outer > & {
@@ -677,7 +671,7 @@ div.img-outer {
       transition: opacity 0.2s ease;
     }
   }
-  
+
   // Hide when selected
   .p-outer.selected > .img-outer > & {
     opacity: 0;
@@ -687,11 +681,11 @@ div.img-outer {
   :deep .rating-tags {
     font-size: 0.8em;
     gap: 6px;
-    
+
     .rating-section {
       :deep .rating-stars {
         gap: 0;
-        
+
         .button-vue {
           padding: 2px;
           min-height: unset;
@@ -699,15 +693,15 @@ div.img-outer {
         }
       }
     }
-    
+
     .tags-container {
       gap: 2px;
-      
+
       .chip {
         font-size: 0.75em;
         padding: 2px 6px;
         max-width: 80px;
-        
+
         :deep .chip__content {
           overflow: hidden;
           text-overflow: ellipsis;
@@ -715,7 +709,7 @@ div.img-outer {
         }
       }
     }
-    
+
     .more-tags {
       font-size: 0.7em;
     }
@@ -726,7 +720,7 @@ div.img-outer {
     left: 2px;
     right: 2px;
     padding: 6px 4px 2px;
-    
+
     :deep .rating-tags {
       font-size: 0.75em;
       gap: 4px;
@@ -747,19 +741,19 @@ div.img-outer {
   transition: opacity 0.2s ease;
   pointer-events: auto;
   z-index: 10;
-  
+
   // Show on hover or when photo has rating
   @media (hover: hover) and (pointer: fine) {
     .p-outer:hover & {
       opacity: 1;
     }
   }
-  
+
   // Always show if there's a rating
   &:has(.rating-stars .button-vue.filled) {
     opacity: 1;
   }
-  
+
   // Show on touch devices
   @media (hover: none) {
     .p-outer:active &,
@@ -767,17 +761,17 @@ div.img-outer {
       opacity: 1;
     }
   }
-  
+
   // Hide when photo is selected
   .p-outer.selected & {
     opacity: 0;
     pointer-events: none;
   }
-  
+
   // Compact rating stars styling for gallery
   :deep .rating-stars {
     gap: 1px !important;
-    
+
     .button-vue {
       padding: 2px;
       min-height: 18px;
@@ -787,7 +781,7 @@ div.img-outer {
 
   @media (max-width: 768px) {
     padding: 6px 4px 2px;
-    
+
     :deep .rating-stars .button-vue {
       min-height: 16px;
       min-width: 16px;

@@ -15,11 +15,11 @@ const TRUNCATE_TABLES = ['memories_mapclusters'];
 final class TimelineWrite
 {
     use TimelineWriteBase;
+    use TimelineWriteEmbeddedTags;
     use TimelineWriteFailures;
     use TimelineWriteMap;
     use TimelineWriteOrphans;
     use TimelineWritePlaces;
-    use TimelineWriteEmbeddedTags;
 
     /**
      * Process a file to insert Exif data into the database.
@@ -213,25 +213,6 @@ final class TimelineWrite
         return $updated;
     }
 
-    private function processStoredEmbeddedTags(File $file, ?array $row, ?string $userId): void
-    {
-        if (null === $userId || empty($row['exif'])) {
-            return;
-        }
-
-        try {
-            $exif = json_decode($row['exif'], true);
-            if (\is_array($exif)) {
-                $this->processEmbeddedTags($file, $exif, $userId);
-            }
-        } catch (\Exception $e) {
-            $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
-                'path' => $file->getPath(),
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
     /**
      * Remove a file from the exif database.
      */
@@ -291,6 +272,25 @@ final class TimelineWrite
     {
         foreach (array_merge(DELETE_TABLES, DELETE_ALL, TRUNCATE_TABLES) as $table) {
             $this->connection->truncateTable($table, false);
+        }
+    }
+
+    private function processStoredEmbeddedTags(File $file, ?array $row, ?string $userId): void
+    {
+        if (null === $userId || empty($row['exif'])) {
+            return;
+        }
+
+        try {
+            $exif = json_decode($row['exif'], true);
+            if (\is_array($exif)) {
+                $this->processEmbeddedTags($file, $exif, $userId);
+            }
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
+                'path' => $file->getPath(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

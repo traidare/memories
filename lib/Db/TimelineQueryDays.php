@@ -418,8 +418,9 @@ trait TimelineQueryDays
         $row['w'] = (int) $row['w'];
         $row['h'] = (int) $row['h'];
         $row['size'] = (int) $row['size'];
-        if ($row['exif'] ?? null) {
-            $exif = json_decode($row['exif'], true);
+        $exif = $row['exif'] ?? null;
+        if (\is_string($exif) && '' !== $exif) {
+            $exif = json_decode($exif, true);
             $row['exif'] = \is_array($exif) ? $exif : [];
             $row['rating'] = isset($row['exif']['Rating']) ? (int) $row['exif']['Rating'] : null;
             $row['embedded_tags'] = Exif::extractEmbeddedTags($row['exif'], true);
