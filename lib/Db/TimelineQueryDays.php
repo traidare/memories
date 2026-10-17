@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Memories\Db;
 
 use OCA\Memories\ClustersBackend;
+use OCA\Memories\Exif;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 
 /**
@@ -62,8 +63,14 @@ trait TimelineQueryDays
         // FETCH all days
         $rows = $this->executeQueryWithCTEs($query)->fetchAllAssociative();
 
-        // Post process the days
-        return $this->postProcessDays($rows, $monthView);
+        if (!$this->shouldFilterExifBySQL() && [] !== $this->getEmbeddedTagsFromRequest()) {
+            $rows = $this->postProcessDaysWithFilters($rows, $monthView, $recursive, $archive, $queryTransforms);
+        } else {
+            // Post process the days normally
+            $rows = $this->postProcessDays($rows, $monthView);
+        }
+
+        return $rows;
     }
 
     /**
@@ -75,6 +82,7 @@ trait TimelineQueryDays
      * @param bool                 $hidden          If the query should include hidden files
      * @param bool                 $monthView       If the query should be in month view (dayIds are monthIds)
      * @param bool                 $reverse         If the query should be in reverse order
+     * @param list<string>         $embeddedTags    The embedded tags to include
      * @param list<QueryTransform> $queryTransforms The query transformations to apply
      *
      * @return array An array of day responses
@@ -86,6 +94,7 @@ trait TimelineQueryDays
         bool $hidden,
         bool $monthView,
         bool $reverse,
+        array $embeddedTags = [],
         array $queryTransforms = [],
     ): array {
         // Check if we have any dayIds
@@ -108,6 +117,7 @@ trait TimelineQueryDays
             ->selectAlias('m.isvideo', 'isvideo')
             ->selectAlias('m.pano', 'pano')
             ->selectAlias('m.video_duration', 'video_duration')
+            ->selectAlias('m.exif', 'exif')
             ->selectAlias('f.etag', 'etag')
             ->selectAlias('m.indexed_at', 'indexed_at')
             ->selectAlias('f.name', 'basename')
@@ -177,6 +187,11 @@ trait TimelineQueryDays
         // Post process the day in-place
         foreach ($day as &$photo) {
             $this->postProcessDayPhoto($photo, $monthView);
+        }
+
+        // Filter by embedded tags
+        if ($embeddedTags) {
+            $day = array_values(array_filter($day, static fn ($photo) => EmbeddedTagFilter::matchesAll($embeddedTags, $photo['embedded_tags'] ?? [])));
         }
 
         return $day;
@@ -261,6 +276,89 @@ trait TimelineQueryDays
     }
 
     /**
+     * Process the days response with EXIF filtering applied after SQL query.
+     *
+     * @param array                $rows            The days response from SQL
+     * @param bool                 $monthView       Whether the response is in month view
+     * @param bool                 $recursive       Whether to get the days recursively
+     * @param bool                 $archive         Whether to include only the archive folder
+     * @param list<QueryTransform> $queryTransforms The query transformations to apply
+     */
+    private function postProcessDaysWithFilters(
+        array $rows,
+        bool $monthView,
+        bool $recursive,
+        bool $archive,
+        array $queryTransforms,
+    ): array {
+        if (empty($rows)) {
+            return $rows;
+        }
+
+        // Get filter parameters from request
+        $embeddedTags = $this->getEmbeddedTagsFromRequest();
+
+        // Get day IDs for filtering
+        $dayIds = array_map(static fn ($row) => (int) $row['dayid'], $rows);
+
+        // Fetch all photos for these days (without EXIF filtering)
+        $allPhotos = $this->getDay(
+            $dayIds,
+            $recursive,
+            $archive,
+            false,
+            false,
+            false,
+            [],
+            $queryTransforms,
+        );
+
+        // Group photos by day
+        $photosByDay = [];
+        foreach ($allPhotos as $photo) {
+            $dayId = (int) $photo['dayid'];
+            if (!isset($photosByDay[$dayId])) {
+                $photosByDay[$dayId] = [];
+            }
+            $photosByDay[$dayId][] = $photo;
+        }
+
+        // Apply PHP filtering and recount
+        $filteredRows = [];
+        foreach ($rows as $row) {
+            $dayId = (int) $row['dayid'];
+            $dayPhotos = $photosByDay[$dayId] ?? [];
+
+            // Apply EXIF filters
+            if (!empty($embeddedTags)) {
+                $dayPhotos = array_filter($dayPhotos, static fn ($photo) => EmbeddedTagFilter::matchesAll($embeddedTags, $photo['embedded_tags'] ?? []));
+            }
+
+            // Only include days with qualifying photos
+            $filteredCount = \count($dayPhotos);
+            if ($filteredCount > 0) {
+                $filteredRows[] = [
+                    'dayid' => $dayId,
+                    'count' => $filteredCount,
+                ];
+            }
+        }
+
+        // Convert to months if needed
+        return $this->postProcessDays($filteredRows, $monthView);
+    }
+
+    /**
+     * Extract embedded tags from request parameter.
+     *
+     * @return list<string>
+     */
+    private function getEmbeddedTagsFromRequest(): array
+    {
+        return EmbeddedTagFilter::parse($this->request->getParam('embeddedTags'));
+    }
+
+    /**
      * Process the days response.
      *
      * @param array $rows      the days response
@@ -309,6 +407,12 @@ trait TimelineQueryDays
         $row['pano'] = (int) ($row['pano'] ?? 0);
         $row['size'] = (int) $row['size'];
         $row['indexed_at'] = (int) $row['indexed_at'];
+        $exif = $row['exif'] ?? null;
+        if (\is_string($exif) && '' !== $exif) {
+            $exif = json_decode($exif, true);
+            $row['exif'] = \is_array($exif) ? $exif : [];
+            $row['embedded_tags'] = Exif::extractEmbeddedTags($row['exif'], true);
+        }
 
         // Optional fields
         if (!$row['isvideo']) {

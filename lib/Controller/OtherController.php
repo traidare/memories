@@ -135,6 +135,7 @@ final class OtherController extends ApiController
                 'show_exif_on_mobile' => 'true' === $this->systemConfig->getUserConfigValue('showExifOnMobile', 'false'),
                 'metadata_in_slideshow' => 'true' === $this->systemConfig->getUserConfigValue('metadataInSlideshow', 'false'),
                 'slideshow_duration' => (int) $this->systemConfig->getUserConfigValue('slideshowDuration', '5'),
+                'metadata_in_gallery' => 'true' === $this->systemConfig->getUserConfigValue('metadataInGallery', 'false'),
 
                 // on this day settings
                 'onthisday_day_range' => (int) $this->systemConfig->getUserConfigValue('onthisdayDayRange', '3'),

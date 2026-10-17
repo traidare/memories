@@ -346,6 +346,81 @@ final class Exif
     }
 
     /**
+     * Extract embedded tags from EXIF data.
+     *
+     * @param array $exif    EXIF data
+     * @param bool  $flatten Whether to flatten the tags into a single array (hierarchy is represented by /)
+     *
+     * @return array Array of tag paths
+     */
+    public static function extractEmbeddedTags(array $exif, bool $flatten = false): array
+    {
+        $embeddedTags = [];
+        $tagSet = [];
+
+        // Helper function to ensure we have an array of strings
+        // (exiftool returns numeric tags such as years as numbers)
+        $ensureArray = static function (mixed $value): array {
+            if (empty($value)) {
+                return [];
+            }
+            $values = \is_array($value) ? $value : [$value];
+
+            return array_map(strval(...), array_filter($values, is_scalar(...)));
+        };
+
+        // Helper function to add a tag path with normalization and deduplication
+        $addTag = static function (array $tagPath) use (&$embeddedTags, &$tagSet): void {
+            // Normalize to '/' and lowercase for deduplication
+            $normalizedKey = strtolower(implode('/', $tagPath));
+
+            if (!isset($tagSet[$normalizedKey])) {
+                $tagSet[$normalizedKey] = true;
+                $embeddedTags[] = $tagPath;
+            }
+        };
+
+        // Extract from TagsList (split by '/')
+        if (!empty($exif['TagsList'])) {
+            foreach ($ensureArray($exif['TagsList']) as $tag) {
+                $addTag(explode('/', $tag));
+            }
+        }
+
+        // Extract from HierarchicalSubject (split by '|')
+        if (!empty($exif['HierarchicalSubject'])) {
+            foreach ($ensureArray($exif['HierarchicalSubject']) as $tag) {
+                $addTag(explode('|', $tag));
+            }
+        }
+
+        // Extract from Keywords (might contain paths with '/' or '|')
+        if (!empty($exif['Keywords'])) {
+            foreach ($ensureArray($exif['Keywords']) as $keyword) {
+                $addTag(explode(str_contains($keyword, '/') ? '/' : '|', $keyword));
+            }
+        }
+
+        // Extract from Subject (as individual tags)
+        if (!empty($exif['Subject'])) {
+            foreach ($ensureArray($exif['Subject']) as $tag) {
+                $addTag([$tag]);
+            }
+        }
+
+        // Filter out component tags
+        $embeddedTags = self::filterComponentTags($embeddedTags);
+
+        if ($flatten) {
+            $embeddedTags = array_map(static function ($tag) {
+                return implode('/', $tag);
+            }, $embeddedTags);
+        }
+
+        return $embeddedTags;
+    }
+
+    /**
      * Get the list of MIME Types that are allowed to be edited.
      */
     public function allowedEditMimetypes(): array
@@ -357,7 +432,7 @@ final class Exif
      * Set exif data using raw json.
      *
      * @param string               $path to local file
-     * @param array<string, mixed> $data exif data
+     * @param array<string, mixed> $data exif data, null deletes a tag
      *
      * @throws \Exception on failure
      */
@@ -433,8 +508,9 @@ final class Exif
             // Not our problem
         }
 
-        // Touch the file, triggering a reprocess through the hook
-        $file->touch();
+        // Touch the file, triggering a reprocess through the hook. Change the mtime even
+        // if the file was written within the same second, which it would skip as unchanged.
+        $file->touch(max(time(), $file->getMTime() + 1));
     }
 
     /**
@@ -480,6 +556,57 @@ final class Exif
 
             throw $ex;
         }
+    }
+
+    /**
+     * Filter out tags that are components of hierarchical tags.
+     *
+     * For example, if we have "Country/Italy", don't also show "Country" or "Italy".
+     */
+    private static function filterComponentTags(array $tags): array
+    {
+        if (empty($tags)) {
+            return $tags;
+        }
+
+        // Step 1: Collect all tags into normalized collections
+        $flatTags = []; // Single-part tags (no separator)
+        $hierarchicalTags = []; // Multi-part tags (length > 1)
+        $hierarchicalTagParts = []; // All parts from hierarchical tags
+
+        foreach ($tags as $tag) {
+            $normalized = array_map('strtolower', $tag);
+
+            if (1 === \count($normalized)) {
+                // Single-part tag
+                $flatTags[$normalized[0]] = $tag;
+            } else {
+                // Multi-part hierarchical tag
+                $hierarchicalTags[] = $tag;
+
+                // Add all parts to hierarchicalTagParts
+                foreach ($normalized as $part) {
+                    $hierarchicalTagParts[$part] = true;
+                }
+            }
+        }
+
+        // Step 2: Combination - remove flat tags that are parts of hierarchical tags
+        $result = [];
+
+        // Add flat tags that are NOT components of hierarchical tags
+        foreach ($flatTags as $flatTagKey => $originalTag) {
+            if (!isset($hierarchicalTagParts[$flatTagKey])) {
+                $result[] = $originalTag;
+            }
+        }
+
+        // Add all hierarchical tags
+        foreach ($hierarchicalTags as $hierarchicalTag) {
+            $result[] = $hierarchicalTag;
+        }
+
+        return $result;
     }
 
     private function getExiftool(): array

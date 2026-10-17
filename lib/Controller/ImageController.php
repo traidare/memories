@@ -327,6 +327,7 @@ final class ImageController extends ApiController
                 'AllDates', 'Orientation', 'Title', 'Description', 'Label',
                 'Make', 'Model', 'LensModel', 'Copyright', 'GPSLatitude',
                 'GPSLongitude', 'GPSLatitudeRef', 'GPSLongitudeRef', 'GPSCoordinates',
+                'Keywords', 'Subject', 'TagsList', 'HierarchicalSubject',
             ];
             foreach (array_keys($raw) as $key) {
                 if (!\in_array($key, $allowed, true)) {
@@ -334,8 +335,17 @@ final class ImageController extends ApiController
                 }
             }
 
+            // Not on public share pages, whose folders aren't the user's
+            $user = null === $this->request->getParam('token') ? $this->userSession->getUser() : null;
+            $oldExif = null !== $user ? $this->tq->getExifById($id) : [];
+
             // Set the exif data
             $this->exif->setFileExif($file, $raw);
+
+            // Update the user's embedded tags (the file is indexed synchronously)
+            if (null !== $user) {
+                $this->index->updateEmbeddedTags($user, $oldExif, $this->tq->getExifById($id));
+            }
 
             // If rotation changed then update the previews
             if ($raw['Orientation'] ?? false) {
