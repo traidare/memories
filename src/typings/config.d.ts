@@ -47,6 +47,7 @@ declare module '@typings' {
     // on this day settings
     onthisday_day_range: number;
     onthisday_photos_per_year: number;
+    metadata_in_gallery: boolean;
 
     // folder settings
     folders_path: string;

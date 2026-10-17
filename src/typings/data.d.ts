@@ -89,6 +89,9 @@ declare module '@typings' {
     /** Trash info (trash view only) */
     trashInfo?: ITrashInfo;
 
+    /** Reference to exif object */
+    exif?: IExif;
+
     /** Face detection ID */
     faceid?: number;
     /** Face dimensions */
@@ -193,6 +196,11 @@ declare module '@typings' {
     ExifVersion?: string;
     ColorSpace?: number;
 
+    TagsList?: string[];
+    Keywords?: string[];
+    Subject?: string[];
+    HierarchicalSubject?: string[];
+
     GPSAltitude?: number;
     GPSLatitude?: number;
     GPSLongitude?: number;
@@ -214,4 +222,8 @@ declare module '@typings' {
     /** Original location before deletion */
     origPath?: string;
   }
+
+  export type IFilters = {
+    embeddedTags: string[];
+  };
 }

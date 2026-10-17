@@ -1,7 +1,7 @@
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus';
 import { onBeforeUnmount, onMounted } from 'vue';
 import type { FragmentName, Fragment } from '@services/route-fragment';
-import type { IPhoto } from '@typings';
+import type { IFilters, IPhoto } from '@typings';
 
 export type BusEvent = {
   /** Open/close the navigation drawer */
@@ -19,6 +19,9 @@ export type BusEvent = {
   'memories:sidebar:opened': null;
   /** Final event after sidebar is closed */
   'memories:sidebar:closed': null;
+
+  /** Filters have been updated */
+  'memories:filters:changed': IFilters;
 
   /**
    * Remove these photos from the timeline.

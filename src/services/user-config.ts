@@ -35,6 +35,7 @@ const remoteNames: Partial<Record<keyof IConfig, string>> = {
   slideshow_duration: 'slideshowDuration',
   onthisday_day_range: 'onthisdayDayRange',
   onthisday_photos_per_year: 'onthisdayPhotosPerYear',
+  metadata_in_gallery: 'metadataInGallery',
   show_hidden_folders: 'showHidden',
   show_hidden_albums: 'showHiddenAlbums',
   sort_folder_month: 'sortFolderMonth',
@@ -173,6 +174,7 @@ function loadCached(): IConfig {
     // on this day settings
     onthisday_day_range: 3,
     onthisday_photos_per_year: 10,
+    metadata_in_gallery: false,
 
     // folder settings
     folders_path: String(),

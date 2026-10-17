@@ -17,7 +17,7 @@
     <TimelineSkeleton v-if="showSkeleton" />
 
     <!-- No content found and nothing is loading -->
-    <EmptyContent v-if="showEmpty" />
+    <EmptyContent v-if="showEmpty" @reset-filters="resetFilters" :has-filters="hasFilters" />
 
     <div class="recycler-wrap" v-show="!showSkeleton">
       <!-- Top overlay showing date -->
@@ -151,6 +151,7 @@ import * as nativex from '@native';
 
 import { API, DaysFilterType } from '@services/API';
 import * as lens from '@services/lens';
+import { useTimelineFilters } from '@services/timeline-filters';
 
 import type { RouteLocationNormalized } from 'vue-router';
 import type { IDay, IHeadRow, IPhoto, IPhotoRow, IRecyclerState, IRow } from '@typings';
@@ -312,6 +313,7 @@ utils.useBus('memories:timeline:fetch-day', fetchDay);
 utils.useBus('memories:timeline:deleted', deleteFromViewWithAnimation);
 utils.useBus('memories:timeline:soft-refresh', softRefresh);
 utils.useBus('memories:timeline:hard-refresh', refresh);
+const { hasFilters, resetFilters, setQuery: setFilterQuery } = useTimelineFilters(refresh);
 
 /** Whether the current route should show native files. */
 const routeHasNative = computed((): boolean => {
@@ -825,6 +827,9 @@ function loadScrollView(startIndex?: number, endIndex?: number) {
 function getQuery() {
   const query: { [key in DaysFilterType]?: string } = {};
   const set = (filter: DaysFilterType, value: string = '1') => (query[filter] = value);
+
+  // Embedded Tags
+  setFilterQuery(set);
 
   // Favorites
   if (routeIs.Favorites) {

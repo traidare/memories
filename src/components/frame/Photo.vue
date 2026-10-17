@@ -82,6 +82,8 @@
         <div class="overlay overlay-top top-left fill-block"></div>
         <div class="overlay overlay-bottom top-left fill-block" v-if="hasBottomText"></div>
       </div>
+
+      <PhotoTagsOverlay :data="data" />
     </div>
   </div>
 </template>
@@ -96,6 +98,7 @@ import { t } from '@services/l10n';
 import { useRouteIs } from '@services/route-is';
 import * as utils from '@services/utils/common';
 
+import PhotoTagsOverlay from '@components/frame/PhotoTagsOverlay.vue';
 import LivePhotoIcon from '@components/icons/LivePhoto.vue';
 import CheckCircleIcon from 'vue-material-design-icons/CheckCircle.vue';
 import StarIcon from 'vue-material-design-icons/Star.vue';

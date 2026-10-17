@@ -152,6 +152,8 @@
         @update:model-value="updateSlideshowDuration"
       />
 
+      <SettingsEmbeddedTags />
+
       <div class="radio-group">
         <div class="title">{{ t('memories', 'High resolution image loading behavior') }}</div>
         <NcCheckboxRadioSwitch
@@ -324,6 +326,7 @@ import * as nativex from '@native';
 
 import NcButton from '@nextcloud/vue/components/NcButton';
 import NcTextField from '@nextcloud/vue/components/NcTextField';
+import SettingsEmbeddedTags from '@components/SettingsEmbeddedTags.vue';
 const NcAppSettingsDialog = defineAsyncComponent(() => import('@nextcloud/vue/components/NcAppSettingsDialog'));
 const NcAppSettingsSection = defineAsyncComponent(() => import('@nextcloud/vue/components/NcAppSettingsSection'));
 const NcCheckboxRadioSwitch = defineAsyncComponent(() => import('@nextcloud/vue/components/NcCheckboxRadioSwitch'));
