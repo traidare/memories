@@ -9,11 +9,13 @@ use OCP\Files\File;
 use OCP\Lock\ILockingProvider;
 
 const DELETE_TABLES = ['memories', 'memories_livephoto', 'memories_places', 'memories_failures'];
+const DELETE_ALL = ['memories_embedded_tags'];
 const TRUNCATE_TABLES = ['memories_mapclusters'];
 
 final class TimelineWrite
 {
     use TimelineWriteBase;
+    use TimelineWriteEmbeddedTags;
     use TimelineWriteFailures;
     use TimelineWriteMap;
     use TimelineWriteOrphans;
@@ -26,6 +28,7 @@ final class TimelineWrite
      * @param bool              $lock     Lock the file before processing
      * @param bool              $force    Update the record even if the file has not changed
      * @param ?\Closure(): bool $validate Post-lock validation hook
+     * @param ?string           $userId   User to store embedded tags for (null = file owner)
      *
      * @return bool True if the file was processed
      *
@@ -37,6 +40,7 @@ final class TimelineWrite
         bool $lock = true,
         bool $force = false,
         ?\Closure $validate = null,
+        ?string $userId = null,
     ): bool {
         // Check if we need to lock the file
         if ($lock) {
@@ -53,6 +57,7 @@ final class TimelineWrite
                     lock: false,
                     force: $force,
                     validate: $validate,
+                    userId: $userId,
                 );
             } finally {
                 $this->lockingProvider->releaseLock($lockKey, $lockType);
@@ -61,6 +66,10 @@ final class TimelineWrite
 
         // Run post-lock validation hook if set
         if (null !== $validate && !$validate()) {
+            if (null !== $userId) {
+                $this->processStoredEmbeddedTags($file, $this->getCurrentRow($file->getId()), $userId);
+            }
+
             return false;
         }
 
@@ -78,6 +87,8 @@ final class TimelineWrite
         // - the file has not changed
         // - the record is not an orphan
         if (!$force && $prevRow && ((int) $prevRow['mtime'] === $mtime) && (!(bool) $prevRow['orphan'])) {
+            $this->processStoredEmbeddedTags($file, $prevRow, $userId);
+
             return false;
         }
 
@@ -195,6 +206,15 @@ final class TimelineWrite
             $this->clearFailures($file);
         }
 
+        try {
+            $this->processEmbeddedTags($file, $exif, $userId);
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
+                'path' => $file->getPath(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return $updated;
     }
 
@@ -255,8 +275,27 @@ final class TimelineWrite
      */
     public function clear(): void
     {
-        foreach (array_merge(DELETE_TABLES, TRUNCATE_TABLES) as $table) {
+        foreach (array_merge(DELETE_TABLES, DELETE_ALL, TRUNCATE_TABLES) as $table) {
             $this->connection->truncateTable($table, false);
+        }
+    }
+
+    private function processStoredEmbeddedTags(File $file, ?array $row, ?string $userId): void
+    {
+        if (null === $userId || empty($row['exif'])) {
+            return;
+        }
+
+        try {
+            $exif = json_decode($row['exif'], true);
+            if (\is_array($exif)) {
+                $this->processEmbeddedTags($file, $exif, $userId);
+            }
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to process embedded tags for file {path}: {error}', [
+                'path' => $file->getPath(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

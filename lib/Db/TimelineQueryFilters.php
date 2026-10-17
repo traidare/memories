@@ -12,6 +12,53 @@ trait TimelineQueryFilters
 {
     use TimelineQueryBase;
 
+    /**
+     * @param list<string> $embeddedTags
+     */
+    public function transformEmbeddedTagsFilter(IQueryBuilder &$query, bool $aggregate, array $embeddedTags): void
+    {
+        if (empty($embeddedTags) || !$this->shouldFilterExifBySQL()) {
+            return;
+        }
+
+        $fields = ['Keywords', 'Subject', 'TagsList', 'HierarchicalSubject'];
+
+        foreach ($embeddedTags as $index => $tag) {
+            $or = $query->expr()->orX();
+
+            // exiftool returns numeric tags such as years as numbers
+            $number = json_decode($tag);
+            $number = (\is_int($number) || \is_float($number)) && is_finite($number) ? json_encode($number) : null;
+
+            foreach ($fields as $field) {
+                if (null !== $number) {
+                    $or->add("JSON_CONTAINS(JSON_EXTRACT(m.exif, '$.{$field}'), :number_{$index}_{$field}) = 1");
+                    $query->setParameter("number_{$index}_{$field}", $number, IQueryBuilder::PARAM_STR);
+                }
+
+                $separators = \in_array($field, ['Keywords', 'HierarchicalSubject'], true) ? ['/', '|'] : ['/'];
+                foreach ($separators as $separator) {
+                    $rawTag = '|' === $separator ? str_replace('/', '|', $tag) : $tag;
+                    $suffix = '/' === $separator ? 'slash' : 'pipe';
+                    $tagParam = "tag_{$index}_{$field}_{$suffix}";
+                    $prefixParam = "prefix_{$index}_{$field}_{$suffix}";
+                    $json = "JSON_EXTRACT(m.exif, '$.{$field}')";
+
+                    $or->add("JSON_CONTAINS({$json}, JSON_QUOTE(:{$tagParam})) = 1");
+                    $or->add("JSON_SEARCH({$json}, 'one', :{$prefixParam}, '!') IS NOT NULL");
+                    $query->setParameter($tagParam, $rawTag, IQueryBuilder::PARAM_STR);
+                    $query->setParameter(
+                        $prefixParam,
+                        str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $rawTag).$separator.'%',
+                        IQueryBuilder::PARAM_STR,
+                    );
+                }
+            }
+
+            $query->andWhere($or);
+        }
+    }
+
     public function transformFavoriteFilter(IQueryBuilder &$query, bool $aggregate): void
     {
         if ($this->util->isLoggedIn()) {

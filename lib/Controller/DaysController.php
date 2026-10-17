@@ -25,6 +25,7 @@ namespace OCA\Memories\Controller;
 
 use OCA\Memories\AppInfo\Application;
 use OCA\Memories\ClustersBackend;
+use OCA\Memories\Db\EmbeddedTagFilter;
 use OCA\Memories\Db\TimelineQuery;
 use OCA\Memories\Util;
 use OCP\AppFramework\ApiController;
@@ -87,6 +88,7 @@ final class DaysController extends ApiController
                 $this->isHidden(),
                 $this->isMonthView(),
                 $this->isReverse(),
+                $this->getEmbeddedTags(),
                 $this->getTransformations(),
             );
 
@@ -146,6 +148,12 @@ final class DaysController extends ApiController
             };
         }
 
+        if ($this->tq->shouldFilterExifBySQL() && ($embeddedTags = $this->getEmbeddedTags())) {
+            $transforms[] = function (IQueryBuilder &$query, bool $aggregate) use ($embeddedTags): void {
+                $this->tq->transformEmbeddedTagsFilter($query, $aggregate, $embeddedTags);
+            };
+        }
+
         // Limit number of responses for day query
         if ($limit = $this->request->getParam('limit')) {
             $transforms[] = function (IQueryBuilder &$query, bool $aggregate) use ($limit): void {
@@ -202,6 +210,7 @@ final class DaysController extends ApiController
             $this->isHidden(),
             $this->isMonthView(),
             $this->isReverse(),
+            $this->getEmbeddedTags(),
             $this->getTransformations(),
         );
 
@@ -248,5 +257,11 @@ final class DaysController extends ApiController
     private function isReverse(): bool
     {
         return null !== $this->request->getParam('reverse');
+    }
+
+    /** @return list<string> */
+    private function getEmbeddedTags(): array
+    {
+        return EmbeddedTagFilter::parse($this->request->getParam('embeddedTags'));
     }
 }
