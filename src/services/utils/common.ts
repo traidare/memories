@@ -4,6 +4,7 @@ export * from './date';
 export * from './dialog';
 export * from './dom';
 export * from './event-bus';
+export * from './exif';
 export * from './live-photo';
 export * from './network';
 export * from './photo';

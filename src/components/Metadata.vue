@@ -60,6 +60,7 @@
         </NcActions>
       </div>
     </div>
+    <MetadataEmbeddedTags :exif="exif" :can-edit="canEdit" />
 
     <div v-if="lat && lon" class="map">
       <MapStandalone :center="[lat, lon]" :pins="[[lat, lon]]" />
@@ -91,6 +92,7 @@ import { useRouteIs } from '@services/route-is';
 import Cluster from '@components/frame/Cluster.vue';
 import AlbumsList from '@components/modal/AlbumsList.vue';
 import XLoadingIcon from '@components/XLoadingIcon.vue';
+import MetadataEmbeddedTags from '@components/MetadataEmbeddedTags.vue';
 const MapStandalone = defineAsyncComponent(() => import('@components/MapStandalone.vue'));
 
 import EditIcon from 'vue-material-design-icons/Pencil.vue';

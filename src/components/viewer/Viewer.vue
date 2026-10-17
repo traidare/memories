@@ -73,13 +73,16 @@
       </div>
 
       <div class="bottom-bar" v-if="photoswipe && showBottomBarExif">
-        <div class="exif title" v-if="currentPhoto?.imageInfo?.exif?.Title">
-          {{ currentPhoto.imageInfo.exif.Title }}
+        <div class="bottom-bar-left">
+          <div class="exif title" v-if="currentPhoto?.imageInfo?.exif?.Title">
+            {{ currentPhoto.imageInfo.exif.Title }}
+          </div>
+          <div class="exif description" v-if="currentPhoto?.imageInfo?.exif?.Description">
+            {{ currentPhoto.imageInfo.exif.Description }}
+          </div>
+          <ViewerDateAddress :photo="currentPhoto" :two-lines="false" />
         </div>
-        <div class="exif description" v-if="currentPhoto?.imageInfo?.exif?.Description">
-          {{ currentPhoto.imageInfo.exif.Description }}
-        </div>
-        <ViewerDateAddress :photo="currentPhoto" :two-lines="false" />
+        <ViewerEmbeddedTags :photo="currentPhoto" />
       </div>
 
       <MobileBottomBar v-if="photoswipe && bottomActions.length" class="viewer-mobile-actions" dark>
@@ -140,6 +143,7 @@ import PhotoEditor from './PhotoEditor.vue';
 import ViewerDateAddress from './ViewerDateAddress.vue';
 import ViewerBottomSheet from './ViewerBottomSheet.vue';
 import ViewerSheetGestures from './ViewerSheetGestures.vue';
+import ViewerEmbeddedTags from './ViewerEmbeddedTags.vue';
 import MobileBottomBar from '@components/MobileBottomBar.vue';
 import XLoadingIcon from '@components/XLoadingIcon.vue';
 import * as ximg from '@components/frame/XImgCache';
@@ -1775,11 +1779,15 @@ function updateAlbums() {
   bottom: 0;
   left: 0;
   pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
 
   transition: opacity 0.2s ease-in-out;
   opacity: 0;
-  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video) &:has(> .exif),
-  .memories-viewer.force-metadata.fully-opened:not(.is-video) &:has(> .exif) {
+  .memories-viewer:has(.pswp--ui-visible):not(.is-slideshow).fully-opened:not(.is-video)
+    &:has(.exif, .bottom-bar-right),
+  .memories-viewer.force-metadata.fully-opened:not(.is-video) &:has(.exif, .bottom-bar-right) {
     opacity: 1;
   }
 
@@ -1789,6 +1797,11 @@ function updateAlbums() {
       // 62px approx. height of .viewer-mobile-actions.
       bottom: calc(62px + max(10px, env(safe-area-inset-bottom)));
     }
+  }
+
+  .bottom-bar-left {
+    flex: 1;
+    min-width: 0; // Allow flex shrinking
   }
 
   .exif {

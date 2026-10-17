@@ -8,6 +8,11 @@
       <MapIcon v-else-if="routeIs.Map" />
       <ImageMultipleIcon v-else />
     </template>
+    <template #action>
+      <NcButton variant="primary" @click="emit('reset-filters')" v-if="hasFilters">
+        {{ t('memories', 'Reset filters') }}
+      </NcButton>
+    </template>
   </NcEmptyContent>
 </template>
 
@@ -16,6 +21,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent';
+import NcButton from '@nextcloud/vue/components/NcButton';
 
 import { useRouteIs } from '@services/route-is';
 import { t } from '@services/l10n';
@@ -31,6 +37,19 @@ import MapIcon from 'vue-material-design-icons/Map.vue';
 defineOptions({
   name: 'EmptyContent',
 });
+
+withDefaults(
+  defineProps<{
+    hasFilters?: boolean;
+  }>(),
+  {
+    hasFilters: false,
+  },
+);
+
+const emit = defineEmits<{
+  'reset-filters': [];
+}>();
 
 const route = useRoute();
 const routeIs = useRouteIs();

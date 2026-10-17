@@ -29,6 +29,7 @@ export const enum DaysFilterType {
   FACERECOGNITION = 'facerecognition',
   PLACE = 'places',
   TAG = 'tags',
+  EMBEDDED_TAGS = 'embeddedTags',
   MAP_BOUNDS = 'mapbounds',
 
   FACE_RECT = 'facerect',
@@ -108,6 +109,10 @@ export class API {
 
   static TAG_SET(fileid: string | number) {
     return gen(`${BASE}/tags/set/{fileid}`, { fileid });
+  }
+
+  static EMBEDDED_TAGS_FLAT() {
+    return gen(`${BASE}/embedded-tags/flat`);
   }
 
   static FACE_LIST(app: 'recognize' | 'facerecognition') {

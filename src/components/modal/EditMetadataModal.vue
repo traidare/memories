@@ -26,6 +26,13 @@
         <div class="tag-padding" v-if="sections.length === 1"></div>
       </div>
 
+      <div v-if="sections.includes(6)">
+        <div class="title-text">
+          {{ t('memories', 'Embedded Tags') }}
+        </div>
+        <EditEmbeddedTags ref="editEmbeddedTags" :photos="photos" :disabled="processing" />
+      </div>
+
       <div v-if="sections.includes(3)">
         <div class="title-text">
           {{ t('memories', 'EXIF Fields') }}
@@ -64,6 +71,7 @@ import Modal from './Modal.vue';
 
 import EditDate from './EditDate.vue';
 import EditTags from './EditTags.vue';
+import EditEmbeddedTags from './EditEmbeddedTags.vue';
 import EditExif from './EditExif.vue';
 import EditLocation from './EditLocation.vue';
 import EditOrientation from './EditOrientation.vue';
@@ -86,6 +94,7 @@ const modal = useTemplateRef('modal');
 const { show, close } = useModal(modal);
 const editDate = useTemplateRef<InstanceType<typeof EditDate>>('editDate');
 const editTags = useTemplateRef<InstanceType<typeof EditTags>>('editTags');
+const editEmbeddedTags = useTemplateRef<InstanceType<typeof EditEmbeddedTags>>('editEmbeddedTags');
 const editExif = useTemplateRef<InstanceType<typeof EditExif>>('editExif');
 const editLocation = useTemplateRef<InstanceType<typeof EditLocation>>('editLocation');
 const editOrientation = useTemplateRef<InstanceType<typeof EditOrientation>>('editOrientation');
@@ -99,7 +108,7 @@ const abort = useAbort();
 console.assert(!_m.modals.editMetadata, 'EditMetadataModal created twice');
 _m.modals.editMetadata = open;
 
-async function open(photosIn: IPhoto[], sectionsIn: number[] = [1, 2, 3, 4]) {
+async function open(photosIn: IPhoto[], sectionsIn: number[] = [1, 2, 3, 4, 6]) {
   const signal = abort.renew();
   show.value = true;
   processing.value = true;
@@ -227,6 +236,9 @@ async function save() {
     if (orientation != null) {
       raw.Orientation = orientation;
     }
+
+    // Embedded tags
+    Object.assign(raw, editEmbeddedTags.value?.exifFor(p));
 
     exifs.set(p.fileid, raw);
   }
